@@ -2,7 +2,7 @@ import type { ParamDiff } from "./model.js";
 
 export type QueryParams = Map<string, string[]>;
 
-function decode(value: string): string {
+export function decode(value: string): string {
   try {
     return decodeURIComponent(value);
   } catch {

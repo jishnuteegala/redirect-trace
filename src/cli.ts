@@ -6,7 +6,7 @@ import { renderJson, renderMarkdown, renderTerminal } from "./render.js";
 const help = `Usage: redirect-trace <url> [options]
 
 Options:
-  --method <method>  Analysis label (default: GET)
+  --method <method>  Analysis label: GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS, TRACE, CONNECT (default: GET)
   --format <format>  terminal, markdown, or json (default: terminal)
   --max-hops <n>     Maximum redirect hops (default: 10)
   --timeout <ms>     Per-request timeout in milliseconds (default: 10000)
@@ -83,6 +83,13 @@ function parseArgs(args: string[]) {
     usage("URL must use http or https");
   if (format !== "terminal" && format !== "markdown" && format !== "json")
     usage("--format must be terminal, markdown, or json");
+  initialMethod = initialMethod.toUpperCase();
+  if (
+    !new Set(["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE", "CONNECT"]).has(
+      initialMethod,
+    )
+  )
+    usage("--method must be a standard HTTP method");
   return {
     url: parsed,
     initialMethod,

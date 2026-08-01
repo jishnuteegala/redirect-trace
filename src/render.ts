@@ -1,11 +1,15 @@
 import type { AnalyzedTrace, ParamDiff } from "./model.js";
 import { sensitiveKeys } from "./analyze.js";
+import { decode } from "./param-diff.js";
 
 function maskValue(key: string, value: string, showSecrets: boolean): string {
   return !showSecrets && sensitiveKeys.has(key.toLowerCase()) ? "***" : value;
 }
 
-function params(values: { key: string; values: string[] }[], showSecrets: boolean): string {
+function renderParamList(
+  values: { key: string; values: string[] }[],
+  showSecrets: boolean,
+): string {
   return values
     .map(
       ({ key, values: entries }) =>
@@ -14,15 +18,15 @@ function params(values: { key: string; values: string[] }[], showSecrets: boolea
     .join("; ");
 }
 
-function diff(diff: ParamDiff | undefined, showSecrets: boolean): string[] {
-  if (diff === undefined) return [];
+function renderDiffLines(paramDiff: ParamDiff | undefined, showSecrets: boolean): string[] {
+  if (paramDiff === undefined) return [];
   return [
-    ...diff.added.map((entry) => `added ${params([entry], showSecrets)}`),
-    ...diff.changed.map(
+    ...paramDiff.added.map((entry) => `added ${renderParamList([entry], showSecrets)}`),
+    ...paramDiff.changed.map(
       (entry) =>
         `changed ${entry.key}=${entry.before.map((value) => maskValue(entry.key, value, showSecrets)).join(",")} -> ${entry.after.map((value) => maskValue(entry.key, value, showSecrets)).join(",")}`,
     ),
-    ...diff.dropped.map((entry) => `dropped ${params([entry], showSecrets)}`),
+    ...paramDiff.dropped.map((entry) => `dropped ${renderParamList([entry], showSecrets)}`),
   ];
 }
 
@@ -35,9 +39,7 @@ function displayUrl(urlText: string, showSecrets: boolean): string {
     .map((part) => {
       const equals = part.indexOf("=");
       const key = equals < 0 ? part : part.slice(0, equals);
-      return !showSecrets && sensitiveKeys.has(decodeURIComponent(key).toLowerCase())
-        ? `${key}=***`
-        : part;
+      return !showSecrets && sensitiveKeys.has(decode(key).toLowerCase()) ? `${key}=***` : part;
     });
   url.search = query.length === 0 ? "" : `?${query.join("&")}`;
   return url.href;
@@ -102,7 +104,9 @@ export function renderTerminal(analyzed: AnalyzedTrace): string {
       `${hop.index + 1}. ${hop.status ?? "ERROR"} ${displayUrl(hop.requestUrl, analyzed.showSecrets)} ${details}`,
     ];
     if (hop.fragment !== null) result.push(`   fragment: ${hop.fragment} (not sent to server)`);
-    result.push(...diff(hop.paramDiff, analyzed.showSecrets).map((item) => `   params: ${item}`));
+    result.push(
+      ...renderDiffLines(hop.paramDiff, analyzed.showSecrets).map((item) => `   params: ${item}`),
+    );
     result.push(...hop.flags.map((flag) => `   flag: ${flag.kind}: ${flag.reason}`));
     if (hop.timingMs !== undefined) result.push(`   elapsed: ${hop.timingMs}ms`);
     return result;
@@ -131,7 +135,9 @@ export function renderMarkdown(analyzed: AnalyzedTrace): string {
     if (hop.resolvedUrl !== null)
       lines.push(`- Destination: ${displayUrl(hop.resolvedUrl, analyzed.showSecrets)}`);
     if (hop.fragment !== null) lines.push(`- Fragment: ${hop.fragment} (not sent to server)`);
-    lines.push(...diff(hop.paramDiff, analyzed.showSecrets).map((item) => `- Params: ${item}`));
+    lines.push(
+      ...renderDiffLines(hop.paramDiff, analyzed.showSecrets).map((item) => `- Params: ${item}`),
+    );
     lines.push(...hop.flags.map((flag) => `- Flag: ${flag.kind} (${flag.reason})`));
     if (analyzed.includeTiming && hop.timingMs !== undefined)
       lines.push(`- Timing: ${hop.timingMs}ms`);

@@ -13,16 +13,23 @@ function url(query: string): string {
 
 describe("query parameter diff", () => {
   it("decodes the pinned dirty-query corpus while preserving literal pluses", () => {
-    for (const query of dirtyQueries) {
-      const entries = [...parseQuery(url(query)).entries()];
-      expect(entries).not.toHaveLength(0);
-    }
-    expect([...parseQuery(url(dirtyQueries[0]!)).entries()]).toEqual([
-      ["token", ["a+b"]],
-      ["empty", [""]],
-      ["flag", [""]],
-      ["space", ["a b"]],
-      ["plus", ["a+b"]],
+    expect(dirtyQueries.map((query) => [...parseQuery(url(query)).entries()])).toEqual([
+      [
+        ["token", ["a+b"]],
+        ["empty", [""]],
+        ["flag", [""]],
+        ["space", ["a b"]],
+        ["plus", ["a+b"]],
+      ],
+      [
+        ["a", ["1", "2"]],
+        ["encoded key", ["x/y"]],
+      ],
+      [
+        ["q", ["%"]],
+        ["bad", ["%ZZ"]],
+        ["unicode", ["✓"]],
+      ],
     ]);
   });
 
