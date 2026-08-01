@@ -1,0 +1,7 @@
+# redirect-trace
+
+redirect-trace is a local Node CLI for diagnosing one HTTP or HTTPS redirect chain. It follows redirects with safe HEAD-then-GET requests, reports hop destinations and risks, compares query parameters while preserving duplicate keys and order, and masks sensitive query values by default.
+
+Invoke it as `redirect-trace <url> [options]`, `npx redirect-trace <url>`, or `pnpm dlx redirect-trace <url>`. Use `--format terminal` (default), `--format markdown`, or `--format json`. Markdown and JSON are deterministic for the same captured trace unless `--include-timing` is used.
+
+Exit codes: `0` clean terminal chain; `1` resolved chain with flags, including a terminal 4xx/5xx; `2` invalid usage or URL; `3` timeout, connection failure, hop limit, or malformed redirect. Sensitive query keys are masked unless `--show-secrets` is passed.
