@@ -58,6 +58,8 @@ function parseArgs(args: string[]) {
 const options = parseArgs(process.argv.slice(2));
 const result = await traceRedirects(options.url, options);
 process.stdout.write(renderTerminal(result.trace));
+if (result.outcome === "transport")
+  process.stderr.write(`${result.trace.failure ?? result.trace.hops.at(-1)?.error}\n`);
 process.exitCode =
   result.outcome === "transport"
     ? 3

@@ -25,6 +25,7 @@ export type Trace = {
   hopLimit: number;
   timeoutMs: number;
   truncated: boolean;
+  failure?: string;
 };
 
 export type TraceResult =

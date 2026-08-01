@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, type RequestListener } from "node:http";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,7 +7,7 @@ import { traceRedirects } from "../src/engine.js";
 const servers: ReturnType<typeof createServer>[] = [];
 const execFile = promisify(execFileCallback);
 
-async function serve(handler: Parameters<typeof createServer>[0]) {
+async function serve(handler: RequestListener) {
   const server = createServer(handler);
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -28,7 +28,7 @@ function trace(url: string, overrides = {}) {
   return traceRedirects(new URL(url), {
     initialMethod: "GET",
     maxHops: 10,
-    timeoutMs: 100,
+    timeoutMs: 1_000,
     ...overrides,
   });
 }
@@ -73,6 +73,22 @@ describe("redirect engine", () => {
     expect(methods).toEqual(["HEAD", "GET"]);
   });
 
+  it("does not fall back from a terminal error response or send a request body", async () => {
+    const methods: string[] = [];
+    const bodies: string[] = [];
+    const base = await serve((request, response) => {
+      methods.push(request.method ?? "");
+      let body = "";
+      request.on("data", (chunk: Buffer) => (body += chunk));
+      request.on("end", () => bodies.push(body));
+      response.writeHead(404).end();
+    });
+    const result = await runCli(base);
+    expect(result.code).toBe(1);
+    expect(methods).toEqual(["HEAD"]);
+    expect(bodies).toEqual([""]);
+  });
+
   it("returns a partial trace when a redirect lacks Location", async () => {
     const base = await serve((_request, response) => response.writeHead(302).end());
     const result = await trace(base);
@@ -88,6 +104,7 @@ describe("redirect engine", () => {
     const result = await runCli(base, "--max-hops", "2");
     expect(result.code).toBe(3);
     expect(result.stdout).toContain("hop limit of 2 exceeded");
+    expect(result.stdout).not.toContain("3. ERROR");
   });
 
   it("exits 3 with a partial trace on request timeout", async () => {
@@ -120,6 +137,6 @@ describe("redirect engine", () => {
     expect(result.code).toBe(3);
     expect(result.stdout).toContain("302");
     expect(result.stdout).toContain("redirect response has no Location header");
-    expect(result.stderr).toBe("");
+    expect(result.stderr).toContain("redirect response has no Location header");
   });
 });

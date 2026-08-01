@@ -7,7 +7,11 @@ export type TraceOptions = {
 };
 
 function originOf(url: URL) {
-  return { scheme: url.protocol.slice(0, -1), host: url.hostname, port: url.port };
+  return {
+    scheme: url.protocol.slice(0, -1),
+    host: url.hostname,
+    port: url.port || (url.protocol === "https:" ? "443" : "80"),
+  };
 }
 
 function failure(trace: Trace, hop: HopRecord, error: string): TraceResult {
@@ -16,28 +20,32 @@ function failure(trace: Trace, hop: HopRecord, error: string): TraceResult {
   return { trace, outcome: "transport" };
 }
 
+function limitFailure(trace: Trace, error: string): TraceResult {
+  trace.failure = error;
+  trace.truncated = true;
+  return { trace, outcome: "transport" };
+}
+
 async function request(url: URL, timeoutMs: number) {
-  const response = await fetch(url, {
-    method: "HEAD",
-    redirect: "manual",
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (
-    response.status === 405 ||
-    response.status === 501 ||
-    response.status < 200 ||
-    response.status >= 400
-  ) {
+  const deadline = performance.now() + timeoutMs;
+  const fetchWithTimeout = (method: "HEAD" | "GET") => {
+    const remainingMs = Math.ceil(deadline - performance.now());
+    if (remainingMs <= 0) throw new DOMException("request timed out", "TimeoutError");
+    return fetch(url, { method, redirect: "manual", signal: AbortSignal.timeout(remainingMs) });
+  };
+
+  try {
+    const response = await fetchWithTimeout("HEAD");
+    if (response.status !== 405 && response.status !== 501)
+      return { response, method: "HEAD" as const };
     return {
-      response: await fetch(url, {
-        method: "GET",
-        redirect: "manual",
-        signal: AbortSignal.timeout(timeoutMs),
-      }),
+      response: await fetchWithTimeout("GET"),
       method: "GET" as const,
     };
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "TimeoutError") throw error;
+    return { response: await fetchWithTimeout("GET"), method: "GET" as const };
   }
-  return { response, method: "HEAD" as const };
 }
 
 export async function traceRedirects(startUrl: URL, options: TraceOptions): Promise<TraceResult> {
@@ -54,17 +62,7 @@ export async function traceRedirects(startUrl: URL, options: TraceOptions): Prom
 
   for (let index = 0; ; index += 1) {
     if (index >= options.maxHops) {
-      const hop: HopRecord = {
-        index,
-        requestMethod: "HEAD",
-        requestUrl: url.href,
-        status: null,
-        location: null,
-        resolvedUrl: null,
-        origin: originOf(url),
-        fragment: url.hash || null,
-      };
-      return failure(trace, hop, `hop limit of ${options.maxHops} exceeded`);
+      return limitFailure(trace, `hop limit of ${options.maxHops} exceeded`);
     }
 
     let response: Response;
