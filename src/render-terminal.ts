@@ -3,7 +3,9 @@ import type { Trace } from "./model.js";
 export function renderTerminal(trace: Trace): string {
   const lines = trace.hops.map((hop) => {
     const result = hop.error
-      ? `ERROR: ${hop.error}`
+      ? hop.status === null
+        ? hop.error
+        : `ERROR: ${hop.error}`
       : hop.resolvedUrl
         ? `-> ${hop.resolvedUrl}`
         : "completed";

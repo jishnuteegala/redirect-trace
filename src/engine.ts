@@ -26,6 +26,23 @@ function limitFailure(trace: Trace, error: string): TraceResult {
   return { trace, outcome: "transport" };
 }
 
+function resolveLocation(location: string, base: URL): string {
+  const resolved = new URL(location, base);
+  if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
+    throw new TypeError("Location must resolve to HTTP(S)");
+  }
+
+  // Invalid schemes (such as ht!tp://x) are otherwise treated as relative paths.
+  if (/^[^/?#]*:\/\//.test(location)) {
+    const standalone = new URL(location);
+    if (standalone.protocol !== "http:" && standalone.protocol !== "https:") {
+      throw new TypeError("Location must use HTTP(S)");
+    }
+  }
+
+  return resolved.href;
+}
+
 async function request(url: URL, timeoutMs: number) {
   const deadline = performance.now() + timeoutMs;
   const fetchWithTimeout = (method: "HEAD" | "GET") => {
@@ -93,7 +110,7 @@ export async function traceRedirects(startUrl: URL, options: TraceOptions): Prom
     let resolvedUrl: string | null = null;
     if (location !== null) {
       try {
-        resolvedUrl = new URL(location, url).href;
+        resolvedUrl = resolveLocation(location, url);
       } catch {
         const hop: HopRecord = {
           index,

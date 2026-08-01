@@ -64,13 +64,18 @@ describe("redirect engine", () => {
 
   it("falls back to GET when HEAD is unsupported", async () => {
     const methods: string[] = [];
+    const bodies: string[] = [];
     const base = await serve((request, response) => {
       methods.push(request.method ?? "");
+      let body = "";
+      request.on("data", (chunk: Buffer) => (body += chunk));
+      request.on("end", () => bodies.push(body));
       response.writeHead(request.method === "HEAD" ? 405 : 200).end();
     });
     const result = await runCli(base);
     expect(result.code).toBe(0);
     expect(methods).toEqual(["HEAD", "GET"]);
+    expect(bodies).toEqual(["", ""]);
   });
 
   it("does not fall back from a terminal error response or send a request body", async () => {
@@ -95,6 +100,17 @@ describe("redirect engine", () => {
     expect(result.outcome).toBe("transport");
     expect(result.trace.hops).toHaveLength(1);
     expect(result.trace.hops[0]?.error).toContain("Location");
+  });
+
+  it("exits 3 for a malformed absolute-looking Location", async () => {
+    const base = await serve((_request, response) =>
+      response.writeHead(302, { location: "ht!tp://x" }).end(),
+    );
+    const result = await runCli(base);
+    expect(result.code).toBe(3);
+    expect(result.stdout).toContain("invalid Location header");
+    expect(result.stdout).not.toContain("hop limit");
+    expect(result.stderr).toContain("invalid Location header");
   });
 
   it("exits 3 with a partial trace when the hop limit is exceeded", async () => {
