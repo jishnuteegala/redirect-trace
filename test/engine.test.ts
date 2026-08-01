@@ -220,7 +220,7 @@ describe("redirect engine", () => {
   });
 
   it("flags cross-origin host and port changes", async () => {
-    const target = await serve((_request, response) => response.writeHead(200).end(), "127.0.0.2");
+    const target = await serve((_request, response) => response.writeHead(200).end(), "localhost");
     const source = await serve((_request, response) =>
       response.writeHead(302, { location: target }).end(),
     );
