@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing immutable v* tag to retry publishing
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    if: ${{ always() && (github.event_name == 'workflow_dispatch' || needs.release-please.outputs.release_created == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag_name }}
+    steps:
+      - name: Validate tag
+        run: |
+          case "$TAG" in v*) ;; *) exit 1 ;; esac
+          test "$TAG" != "v"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+      - name: Verify tag belongs to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main
+          git rev-parse --verify "refs/tags/$TAG^{commit}"
+          git merge-base --is-ancestor "$TAG" origin/main
+          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true
+      - run: corepack enable
+      - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4
+        with:
+          node-version: 22.15.0
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+      - run: pnpm run build
+      - name: Create reproducible distribution archive
+        run: |
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct "$TAG")
+          export SOURCE_DATE_EPOCH
+          VERSION=${TAG#v}
+          tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner --use-compress-program='gzip -n' -cf "redirect-trace-$VERSION-dist.tar.gz" dist
+          sha256sum "redirect-trace-$VERSION-dist.tar.gz" > SHA256SUMS
+          sha256sum --check SHA256SUMS
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" ./*-dist.tar.gz SHA256SUMS --clobber
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@latest
+      - name: Publish package to npm
+        run: npm publish --provenance
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$TAG" --draft=false
