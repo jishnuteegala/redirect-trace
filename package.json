@@ -2,6 +2,10 @@
   "name": "redirect-trace",
   "version": "0.1.0",
   "description": "Trace HTTP redirect chains locally.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jishnuteegala/redirect-trace.git"
+  },
   "license": "MIT",
   "files": [
     "dist",
