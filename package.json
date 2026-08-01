@@ -1,0 +1,27 @@
+{
+  "name": "redirect-trace",
+  "version": "0.1.0",
+  "description": "Trace HTTP redirect chains locally.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "redirect-trace": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "lint": "oxlint .",
+    "format": "oxfmt --check .",
+    "format:write": "oxfmt .",
+    "typecheck": "tsc -b --noEmit",
+    "test": "pnpm run build && vitest run",
+    "check": "pnpm run lint && pnpm run format && pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "oxfmt": "0.16.0",
+    "oxlint": "0.16.0",
+    "typescript": "5.8.3",
+    "vitest": "3.1.2"
+  },
+  "packageManager": "pnpm@10.10.0"
+}
