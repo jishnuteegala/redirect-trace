@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Trace HTTP redirect chains locally.",
   "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
   "bin": {
     "redirect-trace": "dist/cli.js"
