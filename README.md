@@ -35,7 +35,7 @@ For scripts and agents, parse the deterministic JSON model. Timing is omitted un
 
 ```sh
 redirect-trace "$REDIRECT_URL" --format json > trace.json
-node --input-type=module -e 'import { readFileSync } from "node:fs"; const trace = JSON.parse(readFileSync("trace.json", "utf8")); console.log(trace.flags.map(({ type }) => type).join(", ") || "clean");'
+node --input-type=module -e 'import { readFileSync } from "node:fs"; const trace = JSON.parse(readFileSync("trace.json", "utf8")); console.log(trace.flags.map(({ kind }) => kind).join(", ") || "clean");'
 ```
 
 ## Exit codes
@@ -88,6 +88,10 @@ Flags are observations for review, not assertions that a redirect is wrong.
 | `--include-timing` | off | Include timing in Markdown/JSON; breaks deterministic output. |
 | `--help` | | Print usage, examples, and exit codes. |
 | `--version` | | Print the CLI version. |
+
+## First release
+
+Before merging the first release PR, configure npm trusted publishing for `redirect-trace` with this repository as its trusted publisher. This one-time npmjs setup is required before the workflow can publish with OIDC.
 
 ## License
 

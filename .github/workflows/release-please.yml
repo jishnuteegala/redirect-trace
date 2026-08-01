@@ -76,8 +76,9 @@ jobs:
           SOURCE_DATE_EPOCH=$(git log -1 --format=%ct "$TAG")
           export SOURCE_DATE_EPOCH
           VERSION=${TAG#v}
-          tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner -czf "redirect-trace-$VERSION-dist.tar.gz" dist
+          tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner --use-compress-program='gzip -n' -cf "redirect-trace-$VERSION-dist.tar.gz" dist
           sha256sum "redirect-trace-$VERSION-dist.tar.gz" > SHA256SUMS
+          sha256sum --check SHA256SUMS
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
