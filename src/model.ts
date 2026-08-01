@@ -31,3 +31,33 @@ export type Trace = {
 export type TraceResult =
   | { trace: Trace; outcome: "complete" }
   | { trace: Trace; outcome: "transport" };
+
+export type ParamValues = { key: string; values: string[] };
+
+export type ParamDiff = {
+  added: ParamValues[];
+  dropped: ParamValues[];
+  changed: { key: string; before: string[]; after: string[] }[];
+};
+
+export type FlagKind =
+  | "loop"
+  | "loop-ignoring-params"
+  | "https-downgrade"
+  | "cross-origin"
+  | "host-change"
+  | "port-change"
+  | "method-semantic-transition"
+  | "terminal-error-status";
+
+export type Flag = { kind: FlagKind; hopIndex: number; reason: string };
+
+export type AnalyzedHop = HopRecord & { paramDiff?: ParamDiff; flags: Flag[] };
+
+export type AnalyzedTrace = {
+  trace: Trace;
+  hops: AnalyzedHop[];
+  flags: Flag[];
+  showSecrets: boolean;
+  includeTiming: boolean;
+};

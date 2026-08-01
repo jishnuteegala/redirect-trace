@@ -147,6 +147,40 @@ describe("redirect engine", () => {
     expect(result.stderr).toBe("");
   });
 
+  it("renders masked deterministic markdown and json artifacts", async () => {
+    const base = await serve((request, response) => {
+      if (request.url?.startsWith("/start"))
+        response.writeHead(302, { location: "/done?code=secret&plus=a+b" }).end();
+      else response.writeHead(200).end();
+    });
+    const args = [`${base}/start?token=private#fragment`, "--format", "json"];
+    const first = await runCli(...args);
+    const second = await runCli(...args);
+    expect(first.code).toBe(0);
+    expect(first.stdout).toBe(second.stdout);
+    expect(first.stdout).toContain("token=***");
+    expect(first.stdout).toContain("code=***");
+    expect(first.stdout).not.toContain("private");
+    expect(first.stdout).not.toContain("secret");
+    expect(first.stdout).toContain("fragment");
+    expect((await runCli(...args, "--show-secrets")).stdout).toContain("token=private");
+    const markdown = await runCli(`${base}/start?token=private`, "--format", "markdown");
+    expect(markdown.stdout).toContain("token=***");
+  });
+
+  it("surfaces method, loop, and opt-in rotating-parameter observations", async () => {
+    const base = await serve((request, response) => {
+      if (request.url === "/start") response.writeHead(303, { location: "/cycle?a=1" }).end();
+      else if (request.url === "/cycle?a=1")
+        response.writeHead(307, { location: "/cycle?a=2" }).end();
+      else response.writeHead(200).end();
+    });
+    const result = await runCli(base + "/start", "--method", "POST", "--ignore-params-loop");
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain("method-semantic-transition");
+    expect(result.stdout).toContain("loop-ignoring-params");
+  });
+
   it("exits 3 and prints the partial trace on transport failures", async () => {
     const base = await serve((_request, response) => response.writeHead(302).end());
     const result = await runCli(base);
