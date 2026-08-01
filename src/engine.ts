@@ -43,6 +43,19 @@ function resolveLocation(location: string, base: URL): string {
   return resolved.href;
 }
 
+function normalizedUrl(url: URL): string {
+  const normalized = new URL(url);
+  normalized.protocol = normalized.protocol.toLowerCase();
+  normalized.hostname = normalized.hostname.toLowerCase();
+  if (
+    (normalized.protocol === "http:" && normalized.port === "80") ||
+    (normalized.protocol === "https:" && normalized.port === "443")
+  )
+    normalized.port = "";
+  normalized.hash = "";
+  return normalized.href;
+}
+
 async function request(url: URL, timeoutMs: number) {
   const deadline = performance.now() + timeoutMs;
   const fetchWithTimeout = (method: "HEAD" | "GET") => {
@@ -76,11 +89,14 @@ export async function traceRedirects(startUrl: URL, options: TraceOptions): Prom
     truncated: false,
   };
   let url = startUrl;
+  const seen = new Set<string>();
 
   for (let index = 0; ; index += 1) {
     if (index >= options.maxHops) {
       return limitFailure(trace, `hop limit of ${options.maxHops} exceeded`);
     }
+    const repeatsUrl = seen.has(normalizedUrl(url));
+    seen.add(normalizedUrl(url));
 
     let response: Response;
     let requestMethod: "HEAD" | "GET";
@@ -145,6 +161,10 @@ export async function traceRedirects(startUrl: URL, options: TraceOptions): Prom
       return { trace, outcome: "complete" };
     }
     trace.hops.push(hop);
+    if (repeatsUrl) {
+      trace.terminal = { status: response.status, url: url.href };
+      return { trace, outcome: "complete" };
+    }
     url = new URL(resolvedUrl!);
   }
 }
