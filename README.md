@@ -69,6 +69,18 @@ Terminal and Markdown output report failed expectations as `expected X, got Y`. 
 
 Assertions describe chain shape only: terminal URL, terminal status, and hop count. They will never assert headers, response bodies, or timing. Use an HTTP test framework such as hurl for those checks.
 
+## Batch mode
+
+Trace a redirect map with `--input <file>` or `--input -` for stdin. Each non-blank, non-comment line contains a URL and optionally its expected final URL, separated by whitespace. Lines with three or more columns and invalid URLs are reported as failed rows while the rest of the input completes. Batch input is capped at 10,000 lines.
+
+```sh
+redirect-trace --input redirects.txt --concurrency 4 --expect-status 200 --format markdown > audit.md
+```
+
+Per-row expected finals use the strict comparator by default; `--lax` applies to every row. `--expect-final` and a positional URL cannot be combined with batch input. Batch requests use concurrency 2 by default, but requests from the same input hostname are always serialised. The batch exit status is the worst row result: clean `0`, flagged `1`, assertion failure `4`, or transport/row parse failure `3`; usage failures remain `2`. Invalid input rows use the normal JSON trace shape where possible, including `initialMethod`, but have no `truncated` field because no trace was captured.
+
+Batch terminal output streams one result line as each row completes, followed by an input-ordered summary table. A flagged row's detail is its first observed flag; failures and assertion mismatches take precedence over flags.
+
 ## Secrets and determinism
 
 Query values are masked by default when their case-insensitive key is one of:
@@ -109,6 +121,8 @@ Flags are observations for review, not assertions that a redirect is wrong.
 | `--show-secrets` | off | Show raw sensitive query values. |
 | `--ignore-params-loop` | off | Also detect repeated URLs with query strings removed. |
 | `--include-timing` | off | Include timing in Markdown/JSON; breaks deterministic output. |
+| `--input <file>` | | Batch input file; use `-` for stdin. Cannot be combined with a positional URL or `--expect-final`. |
+| `--concurrency <n>` | `2` | Positive number of simultaneous batch traces across distinct input hosts. Batch input only. |
 | `--help` | | Print usage, examples, and exit codes. |
 | `--version` | | Print the CLI version. |
 

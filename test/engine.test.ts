@@ -2,6 +2,9 @@ import { createServer, type RequestListener } from "node:http";
 import { createServer as createSecureServer } from "node:https";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { evaluateAssertions } from "../src/assertions.js";
 import { traceRedirects } from "../src/engine.js";
@@ -112,7 +115,7 @@ async function runCli(...args: string[]) {
   } catch (error: unknown) {
     if (typeof error === "object" && error !== null && "code" in error && "stdout" in error) {
       const result = error as { code: number; stdout: string; stderr: string };
-      return result;
+      return { code: result.code, stdout: result.stdout, stderr: result.stderr };
     }
     throw error;
   }
@@ -584,5 +587,210 @@ describe("redirect engine", () => {
     expect(result.stdout).toContain("302");
     expect(result.stdout).toContain("redirect response has no Location header");
     expect(result.stderr).toContain("redirect response has no Location header");
+  });
+
+  it("traces batch rows from files with assertions, parse failures, loops, and masked summaries", async () => {
+    const base = await serve((request, response) => {
+      if (request.url?.startsWith("/start"))
+        response.writeHead(302, { location: "/done?token=secret" }).end();
+      else if (request.url === "/loop-a") response.writeHead(302, { location: "/loop-b" }).end();
+      else if (request.url === "/loop-b") response.writeHead(302, { location: "/loop-a" }).end();
+      else response.writeHead(200).end();
+    });
+    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
+    const input = join(directory, "map.txt");
+    await writeFile(
+      input,
+      `# redirect map\n\n${base}/start?token=private ${base}/done?token=secret\n${base}/loop-a\nnot-a-url?token=hush\n${base}/done extra column\n`,
+    );
+    const result = await runCli("--input", input, "--format", "json");
+    const json = JSON.parse(result.stdout);
+    expect(result.code).toBe(3);
+    expect(json).toHaveLength(4);
+    expect(json[0].assertions).toEqual([
+      {
+        kind: "expect-final",
+        expected: `${base}/done?token=***`,
+        actual: `${base}/done?token=***`,
+        passed: true,
+      },
+    ]);
+    expect(json[1].flags).toContainEqual(expect.objectContaining({ kind: "loop" }));
+    expect(json[2]).toMatchObject({
+      startUrl: "not-a-url?token=***",
+      initialMethod: "GET",
+      terminal: { status: null, url: "not-a-url?token=***" },
+      failure: expect.stringContaining("URL must be valid"),
+      hops: [],
+      flags: [],
+      assertions: [],
+    });
+    expect(result.stdout).not.toContain("hush");
+    expect(json[3].failure).toContain("more than two columns");
+    const markdown = await runCli("--input", input, "--format", "markdown");
+    expect(markdown.stdout).toContain("token=***");
+    expect(markdown.stdout).not.toContain("private");
+    expect(markdown.stdout).not.toContain("secret");
+    const terminal = await runCli("--input", input);
+    expect(
+      terminal.stdout
+        .split("\n")
+        .filter((line) => line === `PASS ${base}/start?token=*** -> ${base}/done?token=*** (-)`),
+    ).toHaveLength(1);
+  });
+
+  it("masks sensitive query values in invalid batch JSON rows", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
+    const input = join(directory, "map.txt");
+    await writeFile(input, "https://example.test/?token=hush expected extra\n");
+    const result = await runCli("--input", input, "--format", "json");
+    expect(result.code).toBe(3);
+    expect(result.stdout).toContain("token=***");
+    expect(result.stdout).not.toContain("hush");
+  });
+
+  it("continues batch rows after a request timeout", async () => {
+    const base = await serve((request, response) => {
+      if (request.url === "/slow") setTimeout(() => response.writeHead(200).end(), 100);
+      else response.writeHead(200).end();
+    });
+    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
+    const input = join(directory, "map.txt");
+    await writeFile(input, `${base}/slow\n${base}/done\n`);
+    const result = await runCli("--input", input, "--timeout", "20", "--format", "json");
+    const json = JSON.parse(result.stdout);
+    expect(result.code).toBe(3);
+    expect(json[0].hops.at(-1).error).toContain("request timed out");
+    expect(json[1].terminal).toEqual({ status: 200, url: `${base}/done` });
+  });
+
+  it("keeps batch Markdown and JSON byte-identical despite different completion orders", async () => {
+    let requestCount = 0;
+    const completionOrders: string[][] = [];
+    let currentCompletionOrder: string[] = [];
+    const base = await serve((request, response) => {
+      const run = Math.floor(requestCount / 2);
+      requestCount += 1;
+      const delay = request.url === "/slow" ? (run % 2 === 0 ? 50 : 0) : run % 2 === 0 ? 0 : 50;
+      setTimeout(() => {
+        currentCompletionOrder.push(request.url!);
+        if (currentCompletionOrder.length === 2) {
+          completionOrders.push(currentCompletionOrder);
+          currentCompletionOrder = [];
+        }
+        response.writeHead(200).end();
+      }, delay);
+    });
+    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
+    const input = join(directory, "map.txt");
+    await writeFile(input, `${base}/slow\nhttp://localhost:${new URL(base).port}/fast\n`);
+    const json = await runCli("--input", input, "--concurrency", "2", "--format", "json");
+    const nextJson = await runCli("--input", input, "--concurrency", "2", "--format", "json");
+    const markdown = await runCli("--input", input, "--concurrency", "2", "--format", "markdown");
+    const nextMarkdown = await runCli(
+      "--input",
+      input,
+      "--concurrency",
+      "2",
+      "--format",
+      "markdown",
+    );
+    expect(completionOrders).toHaveLength(4);
+    expect(completionOrders[0]).not.toEqual(completionOrders[1]);
+    expect(json.stdout).toBe(nextJson.stdout);
+    expect(completionOrders[2]).not.toEqual(completionOrders[3]);
+    expect(markdown.stdout).toBe(nextMarkdown.stdout);
+    expect(JSON.parse(json.stdout).map((entry: { startUrl: string }) => entry.startUrl)).toEqual([
+      `${base}/slow`,
+      `http://localhost:${new URL(base).port}/fast`,
+    ]);
+    expect(markdown.stdout.indexOf(`${base}/slow`)).toBeLessThan(
+      markdown.stdout.indexOf("localhost"),
+    );
+  });
+
+  it("serializes batch requests for one host and bounds distinct-host concurrency", async () => {
+    let active = 0;
+    let peak = 0;
+    const order: string[] = [];
+    const base = await serve((request, response) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      order.push(request.url!);
+      setTimeout(() => {
+        active -= 1;
+        response.writeHead(200).end();
+      }, 25);
+    });
+    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
+    const sameHost = join(directory, "same.txt");
+    await writeFile(sameHost, `${base}/one\n${base}/two\n`);
+    await runCli("--input", sameHost, "--concurrency", "4");
+    expect(peak).toBe(1);
+    expect(order).toEqual(["/one", "/two"]);
+    active = 0;
+    peak = 0;
+    const other = await serve((request, response) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      setTimeout(() => {
+        active -= 1;
+        response.writeHead(200).end();
+      }, 25);
+    }, "localhost");
+    const distinctHosts = join(directory, "distinct.txt");
+    await writeFile(distinctHosts, `${base}/three\n${other}/four\n`);
+    await runCli("--input", distinctHosts, "--concurrency", "2");
+    expect(peak).toBeGreaterThanOrEqual(2);
+  });
+
+  it("rejects invalid batch combinations and the input cap before tracing", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
+    const input = join(directory, "map.txt");
+    await writeFile(input, "http://example.test\n".repeat(10_001));
+    expect((await runCli("http://example.test", "--input", input)).code).toBe(2);
+    const expectations = await runCli("--input", input, "--expect-final", "http://example.test");
+    expect(expectations.code).toBe(2);
+    expect(expectations.stderr).toContain("per-row-only");
+    const cap = await runCli("--input", input);
+    expect(cap.code).toBe(2);
+    expect(cap.stderr).toContain("10000-line cap");
+    const nonBatchConcurrency = await runCli("http://example.test", "--concurrency", "2");
+    expect(nonBatchConcurrency.code).toBe(2);
+    expect(nonBatchConcurrency.stderr).toContain("requires batch input");
+    const empty = join(directory, "empty.txt");
+    await writeFile(empty, "# no rows\n\n");
+    const emptyInput = await runCli("--input", empty);
+    expect(emptyInput.code).toBe(2);
+    expect(emptyInput.stderr).toContain("no usable rows");
+    const invalidExpected = join(directory, "invalid-expected.txt");
+    await writeFile(invalidExpected, "https://example.test not-a-url\n");
+    const invalidExpectedResult = await runCli("--input", invalidExpected, "--format", "json");
+    expect(invalidExpectedResult.code).toBe(3);
+    expect(JSON.parse(invalidExpectedResult.stdout)[0].failure).toContain("expected-final column");
+  });
+
+  it("accepts stdin input and gives assertion failures precedence over flags", async () => {
+    const target = await serve((_request, response) => response.writeHead(200).end(), "localhost");
+    const source = await serve((_request, response) =>
+      response.writeHead(302, { location: target }).end(),
+    );
+    const result = await new Promise<{ code: number; stdout: string }>((resolve, reject) => {
+      const child = execFileCallback(
+        process.execPath,
+        ["dist/cli.js", "--format", "json"],
+        { env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: "0" } },
+        (error, stdout) => {
+          if (error !== null && "code" in error) resolve({ code: error.code as number, stdout });
+          else if (error !== null) reject(error);
+          else resolve({ code: 0, stdout });
+        },
+      );
+      child.stdin?.end(`${source} ${target}/wrong\n`);
+    });
+    expect(result.code).toBe(4);
+    expect(JSON.parse(result.stdout)[0].flags).toContainEqual(
+      expect.objectContaining({ kind: "cross-origin" }),
+    );
   });
 });
