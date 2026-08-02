@@ -15,7 +15,7 @@ pnpm add --global redirect-trace
 redirect-trace https://example.com
 ```
 
-The package requires a supported Node LTS release. The CLI only makes the requests needed to trace the URL you provide; it has no telemetry or hosted service.
+Requires Node 18 or newer. `npx` and `pnpm dlx` users on a current Node need do nothing. The CLI only makes the requests needed to trace the URL you provide; it has no telemetry or hosted service.
 
 ## Agent and script use
 
@@ -26,7 +26,7 @@ redirect-trace "$REDIRECT_URL" --format markdown > redirect-trace.md
 case $? in
   0) echo "redirect chain is clean" ;;
   1) echo "redirect chain has observations"; exit 1 ;;
-  2) echo "invalid redirect-trace invocation"; exit 2 ;;
+  2) echo "redirect-trace usage or environment failure"; exit 2 ;;
   3) echo "redirect request could not complete"; exit 3 ;;
 esac
 ```
@@ -44,7 +44,7 @@ node --input-type=module -e 'import { readFileSync } from "node:fs"; const trace
 | --- | --- |
 | `0` | Clean: the chain reached a terminal response with no flags. |
 | `1` | Flagged: the chain resolved, but one or more risks were found, including a terminal 4xx or 5xx response. |
-| `2` | Usage error: arguments or the URL are invalid. |
+| `2` | Usage or environment failure: arguments or the URL are invalid, Node is unsupported, or the CLI could not start. |
 | `3` | Transport/request failure: timeout, connection error, hop limit exceeded, or a 3xx response without `Location`. |
 
 On a mid-chain transport failure, redirect-trace still renders the partial trace and marks the failed hop.
