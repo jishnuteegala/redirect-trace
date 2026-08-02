@@ -3,7 +3,9 @@ import { createServer as createSecureServer } from "node:https";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
+import { evaluateAssertions } from "../src/assertions.js";
 import { traceRedirects } from "../src/engine.js";
+import type { Trace } from "../src/model.js";
 
 const privateKey = `-----BEGIN PRIVATE KEY-----
 MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDydZV6tnIP4QyB
@@ -88,6 +90,15 @@ function trace(url: string, overrides = {}) {
     timeoutMs: 1_000,
     ...overrides,
   });
+}
+
+function finalAssertion(actual: string, expected: string) {
+  return evaluateAssertions({ terminal: { status: 200, url: actual } } as Trace, {
+    expectFinal: new URL(expected),
+    maxHopsSupplied: false,
+    maxHops: 10,
+    lax: true,
+  })[0];
 }
 
 async function runCli(...args: string[]) {
@@ -175,14 +186,18 @@ describe("redirect engine", () => {
     expect(result.stderr).toContain("invalid Location header");
   });
 
-  it("exits 3 with a partial trace when the hop limit is exceeded", async () => {
-    const base = await serve((_request, response) =>
-      response.writeHead(302, { location: "/again" }).end(),
-    );
-    const result = await runCli(base, "--max-hops", "2");
+  it("exits 3 with a partial trace when the default engine hop limit is exceeded", async () => {
+    let requests = 0;
+    const base = await serve((request, response) => {
+      requests += 1;
+      const index = Number(request.url?.slice(1) ?? 0);
+      response.writeHead(302, { location: `/${index + 1}` }).end();
+    });
+    const result = await runCli(`${base}/0`);
     expect(result.code).toBe(3);
-    expect(result.stdout).toContain("hop limit of 2 exceeded");
-    expect(result.stdout).not.toContain("3. ERROR");
+    expect(result.stdout).toContain("hop limit of 10 exceeded");
+    expect(result.stdout).not.toContain("11. ERROR");
+    expect(requests).toBe(10);
   });
 
   it("exits 3 with a partial trace on request timeout", async () => {
@@ -242,6 +257,49 @@ describe("redirect engine", () => {
     expect(result.stdout).toContain("flag: loop");
   });
 
+  it("preserves the repeated response as the terminal in loop JSON output", async () => {
+    const base = await serve((request, response) => {
+      if (request.url === "/a") response.writeHead(302, { location: "/b" }).end();
+      else response.writeHead(302, { location: "/a" }).end();
+    });
+    const result = await runCli(`${base}/a`, "--format", "json");
+    const json = JSON.parse(result.stdout);
+    expect(result.code).toBe(1);
+    expect(json.terminal).toEqual({ status: 302, url: `${base}/a` });
+    expect(json.loopDetected).toBe(true);
+  });
+
+  it("fails an asserted max-hops limit for a self-loop", async () => {
+    const base = await serve((_request, response) =>
+      response.writeHead(302, { location: "/self" }).end(),
+    );
+    const result = await runCli(`${base}/self`, "--max-hops", "2", "--format", "json");
+    expect(result.code).toBe(4);
+    expect(JSON.parse(result.stdout).assertions).toContainEqual({
+      kind: "max-hops",
+      expected: 2,
+      actual: "loop",
+      passed: false,
+      note: "chain did not terminate: redirect loop",
+    });
+  });
+
+  it("fails an asserted max-hops limit for a multi-node cycle", async () => {
+    const base = await serve((request, response) => {
+      if (request.url === "/a") response.writeHead(302, { location: "/b" }).end();
+      else response.writeHead(302, { location: "/a" }).end();
+    });
+    const result = await runCli(`${base}/a`, "--max-hops", "3", "--format", "json");
+    expect(result.code).toBe(4);
+    expect(JSON.parse(result.stdout).assertions).toContainEqual({
+      kind: "max-hops",
+      expected: 3,
+      actual: "loop",
+      passed: false,
+      note: "chain did not terminate: redirect loop",
+    });
+  });
+
   it("renders masked deterministic markdown and json artifacts", async () => {
     const base = await serve((request, response) => {
       if (request.url?.startsWith("/start"))
@@ -271,6 +329,233 @@ describe("redirect engine", () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("%ZZ=v");
     expect(result.stderr).toBe("");
+  });
+
+  it("evaluates final URL, terminal status, and hop count assertions", async () => {
+    const base = await serve((request, response) => {
+      if (request.url === "/start") response.writeHead(302, { location: "/done" }).end();
+      else response.writeHead(201).end();
+    });
+    const args = [
+      `${base}/start`,
+      "--expect-final",
+      `${base}/done`,
+      "--expect-status",
+      "201",
+      "--max-hops",
+      "2",
+    ];
+    expect((await runCli(...args)).code).toBe(0);
+    const failed = await runCli(
+      `${base}/start`,
+      "--expect-final",
+      `${base}/other`,
+      "--expect-status",
+      "200",
+    );
+    expect(failed.code).toBe(4);
+    expect(failed.stdout).toContain(`expected ${base}/other, got ${base}/done`);
+    expect((await runCli(`${base}/start`, "--expect-status", "200")).code).toBe(4);
+    expect((await runCli(`${base}/start`, "--max-hops", "2")).code).toBe(0);
+  });
+
+  it("fails a max-hops assertion after tracing one redirect beyond the expectation", async () => {
+    const base = await serve((request, response) => {
+      if (request.url === "/start") response.writeHead(302, { location: "/one" }).end();
+      else if (request.url === "/one") response.writeHead(302, { location: "/two" }).end();
+      else if (request.url === "/two") response.writeHead(302, { location: "/done" }).end();
+      else response.writeHead(200).end();
+    });
+    const failed = await runCli(`${base}/start`, "--max-hops", "2", "--format", "json");
+    expect(failed.code).toBe(4);
+    expect(JSON.parse(failed.stdout).assertions).toContainEqual({
+      kind: "max-hops",
+      expected: 2,
+      actual: 3,
+      passed: false,
+    });
+    expect((await runCli(`${base}/start`, "--max-hops", "3")).code).toBe(0);
+  });
+
+  it("reports terminal assertions as indeterminate when an asserted hop cap overflows", async () => {
+    const base = await serve((request, response) => {
+      const index = Number(request.url?.slice(1) ?? 0);
+      response.writeHead(302, { location: `/${index + 1}` }).end();
+    });
+    const result = await runCli(
+      `${base}/0`,
+      "--max-hops",
+      "2",
+      "--expect-final",
+      `${base}/done`,
+      "--expect-status",
+      "200",
+      "--format",
+      "json",
+    );
+    expect(result.code).toBe(4);
+    expect(JSON.parse(result.stdout).assertions).toEqual([
+      {
+        kind: "expect-final",
+        expected: `${base}/done`,
+        actual: null,
+        passed: false,
+        note: "not evaluated: chain did not terminate",
+      },
+      {
+        kind: "expect-status",
+        expected: 200,
+        actual: null,
+        passed: false,
+        note: "not evaluated: chain did not terminate",
+      },
+      { kind: "max-hops", expected: 2, actual: 3, passed: false },
+    ]);
+  });
+
+  it("masks indeterminate final URL assertions in every output format", async () => {
+    const base = await serve((request, response) => {
+      const index = Number(request.url?.slice(1) ?? 0);
+      response.writeHead(302, { location: `/${index + 1}` }).end();
+    });
+    const expected = `${base}/done?token=super-secret`;
+    for (const format of ["terminal", "markdown", "json"]) {
+      const result = await runCli(
+        `${base}/0`,
+        "--max-hops",
+        "2",
+        "--expect-final",
+        expected,
+        "--format",
+        format,
+      );
+      expect(result.code).toBe(4);
+      expect(result.stdout).toContain("token=***");
+      expect(result.stdout).not.toContain("super-secret");
+    }
+  });
+
+  it("uses strict final URL comparison unless lax permits a fixed normalization", async () => {
+    const base = await serve((_request, response) => response.writeHead(200).end());
+    const cases = [
+      [`${base}/done`, `${base}/done/`, "trailing-slash"],
+      [`${base}/done?utm_source=test&keep=yes`, `${base}/done?keep=yes`, "tracking-params"],
+    ];
+    for (const [actual, expected, rule] of cases) {
+      const strict = await runCli(actual, "--expect-final", expected);
+      expect(strict.code).toBe(4);
+      expect(strict.stdout).toContain(`would pass under lax rule: ${rule}`);
+      expect((await runCli(actual, "--expect-final", expected, "--lax")).code).toBe(0);
+    }
+    const https = await serveHttps((_request, response) => response.writeHead(200).end());
+    const httpExpected = https.replace("https:", "http:");
+    const strict = await runCli(https, "--expect-final", httpExpected);
+    expect(strict.code).toBe(4);
+    expect(strict.stdout).toContain("would pass under lax rule: http-to-https");
+    expect((await runCli(https, "--expect-final", httpExpected, "--lax")).code).toBe(0);
+    expect(
+      (
+        await runCli(
+          `${base}/done`,
+          "--expect-final",
+          `http://localhost:${new URL(base).port}/done`,
+          "--lax",
+        )
+      ).code,
+    ).toBe(4);
+    expect(finalAssertion(`${base}/done?q=a+b`, `${base}/done?q=a%20b`).passed).toBe(false);
+    expect(finalAssertion("http://www.example.test/done", "http://example.test/done").passed).toBe(
+      false,
+    );
+  });
+
+  it("prioritizes usage, transport, and assertions and renders assertion artifacts", async () => {
+    const target = await serve((_request, response) => response.writeHead(404).end(), "localhost");
+    const source = await serve((_request, response) =>
+      response.writeHead(302, { location: target }).end(),
+    );
+    expect((await runCli(source, "--expect-status", "200")).code).toBe(4);
+    const partial = await serve((_request, response) => response.writeHead(302).end());
+    expect((await runCli(partial, "--expect-status", "200")).code).toBe(3);
+    expect((await runCli(source, "--lax")).code).toBe(2);
+    const args = [source, "--expect-status", "200", "--format", "json"];
+    const json = JSON.parse((await runCli(...args)).stdout);
+    expect(json.assertions).toEqual([
+      { kind: "expect-status", expected: 200, actual: 404, passed: false },
+    ]);
+    expect(JSON.parse((await runCli(source, "--format", "json")).stdout).assertions).toEqual([]);
+    const finalPass = JSON.parse(
+      (await runCli(source, "--expect-final", target, "--format", "json")).stdout,
+    );
+    expect(finalPass.assertions).toEqual([
+      { kind: "expect-final", expected: `${target}/`, actual: `${target}/`, passed: true },
+    ]);
+    const laxPass = JSON.parse(
+      (
+        await runCli(
+          `${target}/?utm_source=test`,
+          "--expect-final",
+          `${target}/`,
+          "--lax",
+          "--format",
+          "json",
+        )
+      ).stdout,
+    );
+    expect(laxPass.assertions).toEqual([
+      {
+        kind: "expect-final",
+        expected: `${target}/`,
+        actual: `${target}/?utm_source=test`,
+        passed: true,
+        normalization: "tracking-params",
+      },
+    ]);
+    const strictNearMiss = JSON.parse(
+      (await runCli(`${target}/done/`, "--expect-final", `${target}/done`, "--format", "json"))
+        .stdout,
+    );
+    expect(strictNearMiss.assertions).toEqual([
+      {
+        kind: "expect-final",
+        expected: `${target}/done`,
+        actual: `${target}/done/`,
+        passed: false,
+        normalization: "trailing-slash",
+      },
+    ]);
+    const markdownArgs = [source, "--expect-status", "200", "--format", "markdown"];
+    const markdown = await runCli(...markdownArgs);
+    expect(markdown.stdout).toBe((await runCli(...markdownArgs)).stdout);
+    expect(markdown.stdout).toContain("expected 200, got 404");
+  });
+
+  it("masks final URL assertion values in every output format", async () => {
+    const base = await serve((_request, response) => response.writeHead(200).end());
+    const args = [
+      `${base}/done?token=actual-secret`,
+      "--expect-final",
+      `${base}/done?token=expected-secret`,
+    ];
+    for (const format of ["terminal", "markdown", "json"]) {
+      const result = await runCli(...args, "--format", format);
+      expect(result.code).toBe(4);
+      expect(result.stdout).toContain("token=***");
+      expect(result.stdout).not.toContain("expected-secret");
+      expect(result.stdout).not.toContain("actual-secret");
+    }
+    expect((await runCli(...args)).stdout).toContain(
+      "values differ only in masked query parameters",
+    );
+    const json = JSON.parse((await runCli(...args, "--format", "json")).stdout);
+    expect(json.assertions).toEqual([
+      {
+        kind: "expect-final",
+        expected: `${base}/done?token=***`,
+        actual: `${base}/done?token=***`,
+        passed: false,
+      },
+    ]);
   });
 
   it("rejects non-standard method labels", async () => {
