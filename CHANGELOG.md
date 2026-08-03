@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.0](https://github.com/jishnuteegala/redirect-trace/compare/v0.1.0...v0.2.0) (2026-08-03)
+
+
+### Features
+
+* batch mode with per-row expected destinations and polite scheduler ([#23](https://github.com/jishnuteegala/redirect-trace/issues/23)) ([65a0e60](https://github.com/jishnuteegala/redirect-trace/commit/65a0e603357d9678b30b3d9f6e9fac101a58a9e7))
+* CI assertion flags with strict-default comparison and exit-code contract v2 ([#22](https://github.com/jishnuteegala/redirect-trace/issues/22)) ([5f09d30](https://github.com/jishnuteegala/redirect-trace/commit/5f09d3084b7de3e31ff39a3108015ccf5b09b63b))
+* enforce Node &gt;=18 with engines field and preflight guard ([#21](https://github.com/jishnuteegala/redirect-trace/issues/21)) ([9569a5c](https://github.com/jishnuteegala/redirect-trace/commit/9569a5c60e75059b07cc0319b5cf7b1c62f2f299))
+
+
+### Bug Fixes
+
+* exclude component from release tags ([#12](https://github.com/jishnuteegala/redirect-trace/issues/12)) ([2fa543d](https://github.com/jishnuteegala/redirect-trace/commit/2fa543d09c0fd181e2a61fcd3873d02ea6fbc268))
+* use node 24 and pinned npm 12.0.1 in publish job ([#14](https://github.com/jishnuteegala/redirect-trace/issues/14)) ([702109e](https://github.com/jishnuteegala/redirect-trace/commit/702109e6fe697a1b48c4132f68bd7814fa7281e8))
+
 ## 0.1.0 (2026-08-01)
 
 
