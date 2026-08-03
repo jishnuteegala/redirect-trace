@@ -1,3 +1,4 @@
+import type { BatchResult } from "./batch.js";
 import type { AnalyzedTrace, Assertion, ParamDiff } from "./model.js";
 import { sensitiveKeys } from "./analyze.js";
 import { decode } from "./param-diff.js";
@@ -43,6 +44,25 @@ function displayUrl(urlText: string, showSecrets: boolean): string {
     });
   url.search = query.length === 0 ? "" : `?${query.join("&")}`;
   return url.href;
+}
+
+function displayBatchUrl(urlText: string, showSecrets: boolean): string {
+  try {
+    return displayUrl(urlText, showSecrets);
+  } catch {
+    const queryStart = urlText.indexOf("?");
+    if (showSecrets || queryStart < 0) return urlText;
+    const prefix = urlText.slice(0, queryStart + 1);
+    return `${prefix}${urlText
+      .slice(queryStart + 1)
+      .split("&")
+      .map((part) => {
+        const equals = part.indexOf("=");
+        const key = equals < 0 ? part : part.slice(0, equals);
+        return sensitiveKeys.has(decode(key).toLowerCase()) ? `${key}=***` : part;
+      })
+      .join("&")}`;
+  }
 }
 
 function displayLocation(location: string, requestUrl: string, showSecrets: boolean): string {
@@ -195,5 +215,96 @@ export function renderMarkdown(analyzed: AnalyzedTrace): string {
 }
 
 export function renderJson(analyzed: AnalyzedTrace): string {
-  return `${JSON.stringify({ startUrl: displayUrl(analyzed.trace.startUrl, analyzed.showSecrets), initialMethod: analyzed.trace.initialMethod, terminal: { status: analyzed.trace.terminal.status, url: displayUrl(analyzed.trace.terminal.url, analyzed.showSecrets) }, truncated: analyzed.trace.truncated, loopDetected: analyzed.trace.loopDetected, failure: analyzed.trace.failure ?? null, hops: analyzed.hops.map((hop) => jsonHop(analyzed, hop)), flags: analyzed.flags, assertions: analyzed.assertions.map((assertion) => displayedAssertion(assertion, analyzed.showSecrets)) }, null, 2)}\n`;
+  return `${JSON.stringify(jsonTrace(analyzed), null, 2)}\n`;
+}
+
+function jsonTrace(analyzed: AnalyzedTrace) {
+  return {
+    startUrl: displayUrl(analyzed.trace.startUrl, analyzed.showSecrets),
+    initialMethod: analyzed.trace.initialMethod,
+    terminal: {
+      status: analyzed.trace.terminal.status,
+      url: displayUrl(analyzed.trace.terminal.url, analyzed.showSecrets),
+    },
+    truncated: analyzed.trace.truncated,
+    loopDetected: analyzed.trace.loopDetected,
+    failure: analyzed.trace.failure ?? null,
+    hops: analyzed.hops.map((hop) => jsonHop(analyzed, hop)),
+    flags: analyzed.flags,
+    assertions: analyzed.assertions.map((assertion) =>
+      displayedAssertion(assertion, analyzed.showSecrets),
+    ),
+  };
+}
+
+function batchDetails(result: BatchResult) {
+  if (result.row.error !== undefined)
+    return { final: result.row.error, hops: "-", verdict: "FAIL", reason: result.row.error };
+  const analyzed = result.analyzed!;
+  const failed = analyzed.assertions.find((assertion) => !assertion.passed);
+  const flag = analyzed.flags[0];
+  const failure = analyzed.trace.failure ?? analyzed.hops.at(-1)?.error;
+  return {
+    final: displayBatchUrl(analyzed.trace.terminal.url, analyzed.showSecrets),
+    hops: String(
+      analyzed.hops.filter((hop) => hop.status !== null && hop.status >= 300 && hop.status < 400)
+        .length,
+    ),
+    verdict:
+      failure === undefined && failed === undefined
+        ? flag === undefined
+          ? "PASS"
+          : "FLAG"
+        : "FAIL",
+    reason: failure ?? failed?.kind ?? flag?.kind ?? "-",
+  };
+}
+
+export function renderBatchTerminalLine(result: BatchResult, showSecrets: boolean): string {
+  const details = batchDetails(result);
+  return `${details.verdict} ${displayBatchUrl(result.row.url, showSecrets)} -> ${details.final} (${details.reason})`;
+}
+
+export function renderBatchTerminal(results: BatchResult[], showSecrets: boolean): string {
+  return renderBatchSummary(results, showSecrets);
+}
+
+export function renderBatchMarkdown(results: BatchResult[], showSecrets: boolean): string {
+  return renderBatchSummary(results, showSecrets);
+}
+
+function renderBatchSummary(results: BatchResult[], showSecrets: boolean): string {
+  const lines = ["| URL | Final | Hops | Result | Detail |", "| --- | --- | --- | --- | --- |"];
+  for (const result of results) {
+    const details = batchDetails(result);
+    lines.push(
+      `| ${displayBatchUrl(result.row.url, showSecrets)} | ${details.final} | ${details.hops} | ${details.verdict} | ${details.reason} |`,
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+export function renderBatchJson(
+  results: BatchResult[],
+  showSecrets: boolean,
+  initialMethod: string,
+): string {
+  return `${JSON.stringify(
+    results.map((result) =>
+      result.analyzed === undefined
+        ? {
+            startUrl: displayBatchUrl(result.row.url, showSecrets),
+            initialMethod,
+            terminal: { status: null, url: displayBatchUrl(result.row.url, showSecrets) },
+            loopDetected: false,
+            failure: result.row.error,
+            hops: [],
+            flags: [],
+            assertions: [],
+          }
+        : jsonTrace(result.analyzed),
+    ),
+    null,
+    2,
+  )}\n`;
 }
