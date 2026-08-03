@@ -13,6 +13,9 @@
     "LICENSE"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "redirect-trace": "dist/cli.js"
   },
