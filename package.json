@@ -1,6 +1,6 @@
 {
   "name": "redirect-trace",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Trace HTTP redirect chains locally.",
   "repository": {
     "type": "git",
