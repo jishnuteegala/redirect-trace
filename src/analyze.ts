@@ -125,6 +125,7 @@ export function analyzeTrace(
     trace,
     hops,
     flags,
+    assertions: [],
     showSecrets: options.showSecrets,
     includeTiming: options.includeTiming,
   };

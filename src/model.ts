@@ -25,11 +25,13 @@ export type Trace = {
   hopLimit: number;
   timeoutMs: number;
   truncated: boolean;
+  loopDetected: boolean;
   failure?: string;
 };
 
 export type TraceResult =
   | { trace: Trace; outcome: "complete" }
+  | { trace: Trace; outcome: "hop-limit" }
   | { trace: Trace; outcome: "transport" };
 
 export type ParamValues = { key: string; values: string[] };
@@ -58,6 +60,16 @@ export type AnalyzedTrace = {
   trace: Trace;
   hops: AnalyzedHop[];
   flags: Flag[];
+  assertions: Assertion[];
   showSecrets: boolean;
   includeTiming: boolean;
+};
+
+export type Assertion = {
+  kind: "expect-final" | "expect-status" | "max-hops";
+  expected: string | number;
+  actual: string | number | null;
+  passed: boolean;
+  normalization?: "trailing-slash" | "http-to-https" | "tracking-params";
+  note?: string;
 };

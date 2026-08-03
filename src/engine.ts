@@ -3,6 +3,7 @@ import type { HopRecord, Trace, TraceResult } from "./model.js";
 export type TraceOptions = {
   initialMethod: string;
   maxHops: number;
+  maxHopsSupplied?: boolean;
   timeoutMs: number;
 };
 
@@ -23,7 +24,7 @@ function failure(trace: Trace, hop: HopRecord, error: string): TraceResult {
 function limitFailure(trace: Trace, error: string): TraceResult {
   trace.failure = error;
   trace.truncated = true;
-  return { trace, outcome: "transport" };
+  return { trace, outcome: "hop-limit" };
 }
 
 function resolveLocation(location: string, base: URL): string {
@@ -87,12 +88,13 @@ export async function traceRedirects(startUrl: URL, options: TraceOptions): Prom
     hopLimit: options.maxHops,
     timeoutMs: options.timeoutMs,
     truncated: false,
+    loopDetected: false,
   };
   let url = startUrl;
   const seen = new Set<string>();
 
   for (let index = 0; ; index += 1) {
-    if (index >= options.maxHops) {
+    if (index >= options.maxHops && (!options.maxHopsSupplied || index > options.maxHops)) {
       return limitFailure(trace, `hop limit of ${options.maxHops} exceeded`);
     }
     const repeatsUrl = seen.has(normalizedUrl(url));
@@ -162,6 +164,7 @@ export async function traceRedirects(startUrl: URL, options: TraceOptions): Prom
     }
     trace.hops.push(hop);
     if (repeatsUrl) {
+      trace.loopDetected = true;
       trace.terminal = { status: response.status, url: url.href };
       return { trace, outcome: "complete" };
     }

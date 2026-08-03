@@ -1,4 +1,4 @@
-import type { AnalyzedTrace, ParamDiff } from "./model.js";
+import type { AnalyzedTrace, Assertion, ParamDiff } from "./model.js";
 import { sensitiveKeys } from "./analyze.js";
 import { decode } from "./param-diff.js";
 
@@ -51,6 +51,30 @@ function displayLocation(location: string, requestUrl: string, showSecrets: bool
   } catch {
     return location;
   }
+}
+
+function displayedAssertion(assertion: Assertion, showSecrets: boolean): Assertion {
+  if (assertion.kind !== "expect-final") return assertion;
+  return {
+    ...assertion,
+    expected: displayUrl(assertion.expected as string, showSecrets),
+    ...(assertion.actual === null
+      ? {}
+      : { actual: displayUrl(assertion.actual as string, showSecrets) }),
+  };
+}
+
+function assertionLine(assertion: Assertion, showSecrets: boolean): string {
+  const displayed = displayedAssertion(assertion, showSecrets);
+  const detail = `expected ${displayed.expected}, got ${displayed.actual}`;
+  const maskedDifference =
+    assertion.kind === "expect-final" &&
+    !assertion.passed &&
+    assertion.expected !== assertion.actual &&
+    displayed.expected === displayed.actual
+      ? " (values differ only in masked query parameters)"
+      : "";
+  return `${displayed.kind}: ${detail}${maskedDifference}${displayed.normalization === undefined ? "" : ` (would pass under lax rule: ${displayed.normalization})`}${displayed.note === undefined ? "" : ` (${displayed.note})`}`;
 }
 
 function jsonHop(analyzed: AnalyzedTrace, hop: AnalyzedTrace["hops"][number]) {
@@ -112,6 +136,11 @@ export function renderTerminal(analyzed: AnalyzedTrace): string {
     return result;
   });
   if (analyzed.trace.failure !== undefined) lines.push(`ERROR: ${analyzed.trace.failure}`);
+  lines.push(
+    ...analyzed.assertions
+      .filter((assertion) => !assertion.passed)
+      .map((assertion) => assertionLine(assertion, analyzed.showSecrets)),
+  );
   const terminal = analyzed.hops.at(-1);
   if (terminal?.timingMs !== undefined) lines.push(`Terminal elapsed: ${terminal.timingMs}ms`);
   return `${lines.join("\n")}\n`;
@@ -151,9 +180,20 @@ export function renderMarkdown(analyzed: AnalyzedTrace): string {
       ? ["None."]
       : analyzed.flags.map((flag) => `- Hop ${flag.hopIndex + 1}: ${flag.kind} - ${flag.reason}`)),
   );
+  if (analyzed.assertions.length > 0)
+    lines.push(
+      "",
+      "## Assertions",
+      "",
+      ...analyzed.assertions.map((assertion) =>
+        assertion.passed
+          ? `- ${assertion.kind}: passed`
+          : `- ${assertionLine(assertion, analyzed.showSecrets)}`,
+      ),
+    );
   return `${lines.join("\n")}\n`;
 }
 
 export function renderJson(analyzed: AnalyzedTrace): string {
-  return `${JSON.stringify({ startUrl: displayUrl(analyzed.trace.startUrl, analyzed.showSecrets), initialMethod: analyzed.trace.initialMethod, terminal: { status: analyzed.trace.terminal.status, url: displayUrl(analyzed.trace.terminal.url, analyzed.showSecrets) }, truncated: analyzed.trace.truncated, failure: analyzed.trace.failure ?? null, hops: analyzed.hops.map((hop) => jsonHop(analyzed, hop)), flags: analyzed.flags }, null, 2)}\n`;
+  return `${JSON.stringify({ startUrl: displayUrl(analyzed.trace.startUrl, analyzed.showSecrets), initialMethod: analyzed.trace.initialMethod, terminal: { status: analyzed.trace.terminal.status, url: displayUrl(analyzed.trace.terminal.url, analyzed.showSecrets) }, truncated: analyzed.trace.truncated, loopDetected: analyzed.trace.loopDetected, failure: analyzed.trace.failure ?? null, hops: analyzed.hops.map((hop) => jsonHop(analyzed, hop)), flags: analyzed.flags, assertions: analyzed.assertions.map((assertion) => displayedAssertion(assertion, analyzed.showSecrets)) }, null, 2)}\n`;
 }
