@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/jishnuteegala/redirect-trace/compare/v0.2.0...v0.2.1) (2026-08-04)
+
+
+### Features
+
+* record docs, build, and ci commits in changelogs ([#27](https://github.com/jishnuteegala/redirect-trace/issues/27)) ([11feead](https://github.com/jishnuteegala/redirect-trace/commit/11feead72c2e7a105dffdabe8c01ead90f0f1b8d))
+
+
+### Continuous Integration
+
+* use shared app-ci workflow ([#24](https://github.com/jishnuteegala/redirect-trace/issues/24)) ([6b47ea7](https://github.com/jishnuteegala/redirect-trace/commit/6b47ea7d42a9ba6d0d4ed5f035d9eb64854aef17))
+
 ## [0.2.0](https://github.com/jishnuteegala/redirect-trace/compare/v0.1.0...v0.2.0) (2026-08-03)
 
 
