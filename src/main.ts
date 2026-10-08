@@ -33,7 +33,7 @@ Options:
   --show-secrets     Render sensitive query values
   --ignore-params-loop  Detect loops with query parameters removed
   --include-timing   Include timing in markdown/json (not deterministic)
-  --input <file>     Trace URL rows from a file (use - for stdin)
+  --input <file>     Trace URL rows from a file (use - for stdin; default when stdin is piped)
   --concurrency <n>  Batch traces across hosts (default: 2)
   --help             Show this help
   --version          Show version

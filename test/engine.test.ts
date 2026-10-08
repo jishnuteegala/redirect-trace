@@ -121,16 +121,16 @@ async function runCli(...args: string[]) {
   }
 }
 
-describe("redirect engine", () => {
-  it("prints the package version", async () => {
-    const manifest = JSON.parse(
-      await readFile(new URL("../package.json", import.meta.url), "utf8"),
-    ) as { version: string };
-    const result = await runCli("--version");
-    expect(result.code).toBe(0);
-    expect(result.stdout).toBe(`${manifest.version}\n`);
-  });
+it("prints the package version", async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  ) as { version: string };
+  const result = await runCli("--version");
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe(`${manifest.version}\n`);
+});
 
+describe("redirect engine", () => {
   it("follows resolved relative locations to a terminal response", async () => {
     const base = await serve((request, response) => {
       if (request.url === "/start") response.writeHead(301, { location: "next" }).end();

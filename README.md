@@ -77,7 +77,7 @@ Trace a redirect map with `--input <file>` or `--input -` for stdin. With no pos
 redirect-trace --input redirects.txt --concurrency 4 --expect-status 200 --format markdown > audit.md
 ```
 
-Per-row expected finals use the strict comparator by default; `--lax` applies to every row. `--expect-final` and a positional URL cannot be combined with batch input. Batch requests use concurrency 2 by default, but requests from the same input hostname are always serialised. The batch exit status is the worst row result: clean `0`, flagged `1`, assertion failure `4`, or transport or row-parse failure `3`; usage failures remain `2`. Invalid input rows use the normal JSON trace shape where possible, including `initialMethod`, but have no `truncated` field because no trace was captured.
+Per-row expected finals use the strict comparator by default; `--lax` applies to every row. `--expect-final` and a positional URL cannot be combined with batch input. Batch requests use concurrency 2 by default, but requests from the same input hostname are always serialised. The batch exit status is the worst row result: any transport or row-parse failure is `3`; otherwise an assertion failure is `4`, flags give `1`, and a clean run is `0`. Usage failures remain `2`. Invalid input rows use the normal JSON trace shape where possible, including `initialMethod`, but have no `truncated` field because no trace was captured.
 
 Batch terminal output streams one result line as each row completes, followed by an input-ordered summary table. A flagged row's detail is its first observed flag; failures and assertion mismatches take precedence over flags.
 
