@@ -15,11 +15,11 @@ pnpm add --global redirect-trace
 redirect-trace https://example.com
 ```
 
-Requires Node 18 or newer. `npx` and `pnpm dlx` users on a current Node need do nothing. The CLI only makes the requests needed to trace the URL you provide; it has no telemetry or hosted service.
+Requires Node 18 or newer. The CLI only makes the requests needed to trace the URL you provide; it has no telemetry or hosted service.
 
 ## Agent and script use
 
-Use exit status as a CI gate. Output remains on stdout, while request failures are reported on stderr.
+Use exit status as a CI gate. Output stays on stdout; request failures go to stderr.
 
 ```sh
 redirect-trace "$REDIRECT_URL" --format markdown > redirect-trace.md
@@ -32,7 +32,7 @@ case $? in
 esac
 ```
 
-For scripts and agents, parse the deterministic JSON model. Timing is omitted unless explicitly requested.
+For scripts and agents, parse the deterministic JSON model. Timing is omitted unless `--include-timing` is passed.
 
 ```sh
 redirect-trace "$REDIRECT_URL" --format json > trace.json
@@ -63,7 +63,7 @@ redirect-trace https://old.example.com/docs --expect-final https://example.com/d
 
 Final URL comparison is strict by default: both URLs are parsed and serialised, then compared exactly. `--lax` is only valid with `--expect-final` and applies exactly these fixed normalisations: strip trailing path slashes, treat HTTP and HTTPS as equivalent only with the same host and path, and remove `utm_*`, `gclid`, and `fbclid` query parameters. It does not tolerate `www.` changes, patterns, globs, or configurable rules.
 
-Terminal and Markdown output report failed expectations as `expected X, got Y`. If masked query values are the only difference, they say so rather than implying the URLs are identical. When a chain does not terminate (for example, an asserted hop cap is exceeded or a redirect loop is found), terminal URL and status assertions are reported as failed but not evaluated: their `actual` value is `null` and their additive `note` explains why. A loop always fails a supplied `--max-hops` assertion, with `actual: "loop"`. JSON adds an `assertions` array with `kind`, `expected`, `actual`, `passed`, and, where relevant, `normalization` or `note`. A lax pass that requires multiple combined normalizations has no single `normalization` value, so that field is absent.
+Terminal and Markdown output report failed expectations as `expected X, got Y`. If masked query values are the only difference, they say so rather than implying the URLs are identical. When a chain does not terminate (for example, an asserted hop cap is exceeded or a redirect loop is found), terminal URL and status assertions are reported as failed but not evaluated. Their `actual` value is `null` and an additive `note` explains why. A loop always fails a supplied `--max-hops` assertion, with `actual: "loop"`. JSON adds an `assertions` array with `kind`, `expected`, `actual`, `passed`, and, where relevant, `normalization` or `note`. A lax pass that requires multiple combined normalizations has no single `normalization` value, so that field is absent.
 
 ## What this will never assert
 
@@ -71,13 +71,13 @@ Assertions describe chain shape only: terminal URL, terminal status, and hop cou
 
 ## Batch mode
 
-Trace a redirect map with `--input <file>` or `--input -` for stdin. Each non-blank, non-comment line contains a URL and optionally its expected final URL, separated by whitespace. Lines with three or more columns and invalid URLs are reported as failed rows while the rest of the input completes. Batch input is capped at 10,000 lines.
+Trace a redirect map with `--input <file>` or `--input -` for stdin. With no positional URL and no `--input`, piped stdin becomes the batch input. Each non-blank, non-comment line contains a URL and optionally its expected final URL, separated by whitespace. Lines with three or more columns and invalid URLs are reported as failed rows while the rest of the input completes. Batch input is capped at 10,000 lines.
 
 ```sh
 redirect-trace --input redirects.txt --concurrency 4 --expect-status 200 --format markdown > audit.md
 ```
 
-Per-row expected finals use the strict comparator by default; `--lax` applies to every row. `--expect-final` and a positional URL cannot be combined with batch input. Batch requests use concurrency 2 by default, but requests from the same input hostname are always serialised. The batch exit status is the worst row result: clean `0`, flagged `1`, assertion failure `4`, or transport/row parse failure `3`; usage failures remain `2`. Invalid input rows use the normal JSON trace shape where possible, including `initialMethod`, but have no `truncated` field because no trace was captured.
+Per-row expected finals use the strict comparator by default; `--lax` applies to every row. `--expect-final` and a positional URL cannot be combined with batch input. Batch requests use concurrency 2 by default, but requests from the same input hostname are always serialised. The batch exit status is the worst row result: clean `0`, flagged `1`, assertion failure `4`, or transport or row-parse failure `3`; usage failures remain `2`. Invalid input rows use the normal JSON trace shape where possible, including `initialMethod`, but have no `truncated` field because no trace was captured.
 
 Batch terminal output streams one result line as each row completes, followed by an input-ordered summary table. A flagged row's detail is its first observed flag; failures and assertion mismatches take precedence over flags.
 
@@ -106,7 +106,7 @@ Markdown and JSON are deterministic for the same captured trace: they omit timin
 
 Flags are observations for review, not assertions that a redirect is wrong.
 
-## Reference
+## CLI reference
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
@@ -125,10 +125,6 @@ Flags are observations for review, not assertions that a redirect is wrong.
 | `--concurrency <n>` | `2` | Positive number of simultaneous batch traces across distinct input hosts. Batch input only. |
 | `--help` | | Print usage, examples, and exit codes. |
 | `--version` | | Print the CLI version. |
-
-## First release
-
-Before merging the first release PR, configure npm trusted publishing for `redirect-trace` with this repository as its trusted publisher. This one-time npmjs setup is required before the workflow can publish with OIDC.
 
 ## License
 
