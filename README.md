@@ -61,7 +61,7 @@ Use assertions to make a redirect chain a CI gate:
 redirect-trace https://old.example.com/docs --expect-final https://example.com/docs --expect-status 200 --max-hops 2
 ```
 
-Final URL comparison is strict by default: both URLs are parsed and serialised, then compared exactly. `--lax` is only valid with `--expect-final` and applies exactly these fixed normalisations: strip trailing path slashes, treat HTTP and HTTPS as equivalent only with the same host and path, and remove `utm_*`, `gclid`, and `fbclid` query parameters. It does not tolerate `www.` changes, patterns, globs, or configurable rules.
+Final URL comparison is strict by default: both URLs are parsed and serialised, then compared exactly. In single-URL mode, `--lax` is only valid with `--expect-final` and applies exactly these fixed normalisations: strip trailing path slashes, treat HTTP and HTTPS as equivalent only with the same host and path, and remove `utm_*`, `gclid`, and `fbclid` query parameters. It does not tolerate `www.` changes, patterns, globs, or configurable rules.
 
 Terminal and Markdown output report failed expectations as `expected X, got Y`. If masked query values are the only difference, they say so rather than implying the URLs are identical. When a chain does not terminate (for example, an asserted hop cap is exceeded or a redirect loop is found), terminal URL and status assertions are reported as failed but not evaluated. Their `actual` value is `null` and an additive `note` explains why. A loop always fails a supplied `--max-hops` assertion, with `actual: "loop"`. JSON adds an `assertions` array with `kind`, `expected`, `actual`, `passed`, and, where relevant, `normalization` or `note`. A lax pass that requires multiple combined normalizations has no single `normalization` value, so that field is absent.
 
@@ -71,7 +71,7 @@ Assertions describe chain shape only: terminal URL, terminal status, and hop cou
 
 ## Batch mode
 
-Trace a redirect map with `--input <file>` or `--input -` for stdin. With no positional URL and no `--input`, piped stdin becomes the batch input. Each non-blank, non-comment line contains a URL and optionally its expected final URL, separated by whitespace. Lines with three or more columns and invalid URLs are reported as failed rows while the rest of the input completes. Batch input is capped at 10,000 lines.
+Trace a redirect map with `--input <file>` or `--input -` for stdin. With no positional URL and no `--input`, piped or redirected stdin becomes the batch input. Each non-blank, non-comment line contains a URL and optionally its expected final URL, separated by whitespace. Lines with three or more columns and invalid URLs are reported as failed rows while the rest of the input completes. Batch input is capped at 10,000 lines.
 
 ```sh
 redirect-trace --input redirects.txt --concurrency 4 --expect-status 200 --format markdown > audit.md
@@ -110,13 +110,13 @@ Flags are observations for review, not assertions that a redirect is wrong.
 
 | Flag | Default | Meaning |
 | --- | --- | --- |
-| `<url>` | required | One `http` or `https` URL to trace. |
+| `<url>` | required for a single trace | One `http` or `https` URL to trace. Omit when tracing batch input. |
 | `--method <M>` | `GET` | Method label for redirect-semantic analysis. Requests remain safe HEAD-then-GET with no body. |
 | `--format <fmt>` | `terminal` | `terminal`, `markdown`, or `json`. |
 | `--max-hops <n>` | `10` | When supplied, assert that the chain has at most `<n>` redirects; an exceeded assertion exits `4`. Without it, the default engine limit is 10 redirects and an exceeded limit exits `3`. |
 | `--expect-final <url>` | | Require an exact terminal HTTP(S) URL. |
 | `--expect-status <code>` | | Require the terminal integer HTTP status. |
-| `--lax` | off | Apply the three fixed opt-in normalisations to `--expect-final`. |
+| `--lax` | off | Apply the three fixed opt-in normalisations to the expected final URL. |
 | `--timeout <ms>` | `10000` | Per-request timeout in milliseconds. |
 | `--show-secrets` | off | Show raw sensitive query values. |
 | `--ignore-params-loop` | off | Also detect repeated URLs with query strings removed. |

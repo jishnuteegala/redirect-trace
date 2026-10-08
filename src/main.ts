@@ -95,11 +95,16 @@ function parseArgs(args: string[]) {
       process.exit(0);
     }
     if (argument === "--version") {
-      const manifest = JSON.parse(
-        readFileSync(new URL("../package.json", import.meta.url), "utf8"),
-      ) as { version: string };
-      process.stdout.write(`${manifest.version}\n`);
-      process.exit(0);
+      try {
+        const manifest = JSON.parse(
+          readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+        ) as { version: string };
+        process.stdout.write(`${manifest.version}\n`);
+        process.exit(0);
+      } catch (error) {
+        process.stderr.write(`redirect-trace failed to read its version: ${String(error)}\n`);
+        process.exit(2);
+      }
     }
     if (argument === "--method")
       initialMethod = args[++index] ?? usage("--method requires a value");
@@ -183,9 +188,7 @@ if (options.input !== undefined) {
   try {
     input = options.input === "-" ? await readStdin() : await readFile(options.input, "utf8");
   } catch (error) {
-    usage(
-      `could not read batch input: ${options.input} (${error instanceof Error ? error.message : String(error)})`,
-    );
+    usage(`could not read batch input: ${error instanceof Error ? error.message : String(error)}`);
   }
   let rows;
   try {
