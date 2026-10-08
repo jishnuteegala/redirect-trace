@@ -113,7 +113,7 @@ Flags are observations for review, not assertions that a redirect is wrong.
 | `<url>` | required for a single trace | One `http` or `https` URL to trace. Omit when tracing batch input. |
 | `--method <M>` | `GET` | Method label for redirect-semantic analysis. Requests remain safe HEAD-then-GET with no body. |
 | `--format <fmt>` | `terminal` | `terminal`, `markdown`, or `json`. |
-| `--max-hops <n>` | `10` | When supplied, assert that the chain has at most `<n>` redirects; an exceeded assertion exits `4`. Without it, the engine makes at most 10 requests per trace and an exceeded limit exits `3`. |
+| `--max-hops <n>` | `10` | When supplied, assert that the chain has at most `<n>` redirects; an exceeded assertion exits `4`. Without it, the engine follows at most 10 hops per trace and an exceeded limit exits `3`. |
 | `--expect-final <url>` | | Require an exact terminal HTTP(S) URL. |
 | `--expect-status <code>` | | Require the terminal integer HTTP status. |
 | `--lax` | off | Apply the three fixed opt-in normalisations to the expected final URL. |

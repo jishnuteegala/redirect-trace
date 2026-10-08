@@ -3,6 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
+      "extra-files": ["src/version.ts"],
       "include-component-in-tag": false,
       "include-v-in-tag": true,
       "include-v-in-release-name": true,

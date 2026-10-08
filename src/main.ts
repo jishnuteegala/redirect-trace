@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { version } from "./version.js";
 import { traceRedirects } from "./engine.js";
 import { analyzeTrace } from "./analyze.js";
 import { evaluateAssertions } from "./assertions.js";
@@ -95,16 +95,8 @@ function parseArgs(args: string[]) {
       process.exit(0);
     }
     if (argument === "--version") {
-      try {
-        const manifest = JSON.parse(
-          readFileSync(new URL("../package.json", import.meta.url), "utf8"),
-        ) as { version: string };
-        process.stdout.write(`${manifest.version}\n`);
-        process.exit(0);
-      } catch (error) {
-        process.stderr.write(`redirect-trace failed to read its version: ${String(error)}\n`);
-        process.exit(2);
-      }
+      process.stdout.write(`${version}\n`);
+      process.exit(0);
     }
     if (argument === "--method")
       initialMethod = args[++index] ?? usage("--method requires a value");
