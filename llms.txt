@@ -2,6 +2,6 @@
 
 redirect-trace is a local Node CLI for diagnosing HTTP and HTTPS redirect chains. It follows redirects with safe HEAD-then-GET requests, reports hop destinations and risks, diffs query parameters while preserving duplicate keys and order, and masks sensitive query values by default.
 
-Invoke it as `redirect-trace <url> [options]`, `npx redirect-trace <url>`, or `pnpm dlx redirect-trace <url>`. Formats: `terminal` (default), `markdown`, `json`. Markdown and JSON are deterministic for the same captured trace unless `--include-timing` is used. Batch mode reads URL rows from `--input <file>` or `-` (stdin), with an optional expected-final column and host-serialised concurrency.
+Invoke it as `redirect-trace <url> [options]`, `npx redirect-trace <url>`, or `pnpm dlx redirect-trace <url>`. Formats: `terminal` (default), `markdown`, `json`. Markdown and JSON are deterministic for the same captured trace unless `--include-timing` is used. Batch mode reads URL rows from `--input <file>`, `--input -`, or piped stdin by default, with an optional expected-final column and host-serialised concurrency.
 
 Assertions (`--expect-final`, `--expect-status`, `--max-hops`, opt-in `--lax`) turn a chain into a CI gate. Exit codes: `0` clean; `1` resolved with flags, including a terminal 4xx/5xx; `2` usage or environment failure; `3` transport failure (timeout, connection error, engine hop limit, malformed redirect); `4` assertion failure. Sensitive query keys are masked unless `--show-secrets` is passed.

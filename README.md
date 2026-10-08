@@ -46,7 +46,7 @@ node --input-type=module -e 'import { readFileSync } from "node:fs"; const trace
 | `0` | Clean: the chain reached a terminal response with no flags. |
 | `1` | Flagged: the chain resolved, but one or more risks were found, including a terminal 4xx or 5xx response. |
 | `2` | Usage or environment failure: arguments or the URL are invalid, Node is unsupported, or the CLI could not start. |
-| `3` | Transport/request failure: timeout, connection error, the engine hop limit, or a 3xx response without `Location`. |
+| `3` | Transport/request failure: timeout, connection error, the engine hop limit, or a malformed redirect response (missing or invalid `Location`). |
 | `4` | Assertion failure: a supplied chain-shape expectation did not match. |
 
 On a mid-chain transport failure, redirect-trace still renders the partial trace and marks the failed hop.
