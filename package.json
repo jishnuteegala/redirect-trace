@@ -1,7 +1,15 @@
 {
   "name": "redirect-trace",
   "version": "0.2.0",
-  "description": "Trace HTTP redirect chains locally.",
+  "description": "Trace HTTP redirect chains locally with query diffs, risk flags, and CI-safe exit codes.",
+  "keywords": [
+    "redirect",
+    "redirects",
+    "http",
+    "cli",
+    "trace",
+    "debugging"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jishnuteegala/redirect-trace.git"

@@ -10,13 +10,13 @@ import {
 } from "./batch.js";
 import {
   renderBatchJson,
-  renderBatchMarkdown,
-  renderBatchTerminal,
+  renderBatchSummary,
   renderBatchTerminalLine,
   renderJson,
   renderMarkdown,
   renderTerminal,
 } from "./render.js";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 const help = `Usage: redirect-trace <url> [options]
@@ -41,6 +41,8 @@ Options:
 Examples:
   redirect-trace https://example.com
   redirect-trace https://example.com --format markdown > trace.md
+  redirect-trace https://old.example.com/docs --expect-final https://example.com/docs --max-hops 2
+  redirect-trace --input redirects.txt --expect-status 200
 
 Exit codes:
   0 clean     resolved with no flags
@@ -93,7 +95,10 @@ function parseArgs(args: string[]) {
       process.exit(0);
     }
     if (argument === "--version") {
-      process.stdout.write("0.1.0\n");
+      const manifest = JSON.parse(
+        readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+      ) as { version: string };
+      process.stdout.write(`${manifest.version}\n`);
       process.exit(0);
     }
     if (argument === "--method")
@@ -177,8 +182,10 @@ if (options.input !== undefined) {
   let input: string;
   try {
     input = options.input === "-" ? await readStdin() : await readFile(options.input, "utf8");
-  } catch {
-    usage(`could not read batch input: ${options.input}`);
+  } catch (error) {
+    usage(
+      `could not read batch input: ${options.input} (${error instanceof Error ? error.message : String(error)})`,
+    );
   }
   let rows;
   try {
@@ -194,11 +201,9 @@ if (options.input !== undefined) {
       process.stdout.write(`${renderBatchTerminalLine(result, options.showSecrets)}\n`);
   });
   process.stdout.write(
-    options.format === "markdown"
-      ? renderBatchMarkdown(results, options.showSecrets)
-      : options.format === "json"
-        ? renderBatchJson(results, options.showSecrets, options.initialMethod)
-        : renderBatchTerminal(results, options.showSecrets),
+    options.format === "json"
+      ? renderBatchJson(results, options.showSecrets, options.initialMethod)
+      : renderBatchSummary(results, options.showSecrets),
   );
   process.exitCode = batchExitCode(results);
 } else {

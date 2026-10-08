@@ -2,7 +2,7 @@ import { createServer, type RequestListener } from "node:http";
 import { createServer as createSecureServer } from "node:https";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -122,6 +122,15 @@ async function runCli(...args: string[]) {
 }
 
 describe("redirect engine", () => {
+  it("prints the package version", async () => {
+    const manifest = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
+    const result = await runCli("--version");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe(`${manifest.version}\n`);
+  });
+
   it("follows resolved relative locations to a terminal response", async () => {
     const base = await serve((request, response) => {
       if (request.url === "/start") response.writeHead(301, { location: "next" }).end();

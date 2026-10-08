@@ -265,15 +265,7 @@ export function renderBatchTerminalLine(result: BatchResult, showSecrets: boolea
   return `${details.verdict} ${displayBatchUrl(result.row.url, showSecrets)} -> ${details.final} (${details.reason})`;
 }
 
-export function renderBatchTerminal(results: BatchResult[], showSecrets: boolean): string {
-  return renderBatchSummary(results, showSecrets);
-}
-
-export function renderBatchMarkdown(results: BatchResult[], showSecrets: boolean): string {
-  return renderBatchSummary(results, showSecrets);
-}
-
-function renderBatchSummary(results: BatchResult[], showSecrets: boolean): string {
+export function renderBatchSummary(results: BatchResult[], showSecrets: boolean): string {
   const lines = ["| URL | Final | Hops | Result | Detail |", "| --- | --- | --- | --- | --- |"];
   for (const result of results) {
     const details = batchDetails(result);
