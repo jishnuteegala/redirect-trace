@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { traceRedirects } from "./engine.js";
 import { analyzeTrace } from "./analyze.js";
 import { evaluateAssertions } from "./assertions.js";
@@ -16,8 +18,6 @@ import {
   renderMarkdown,
   renderTerminal,
 } from "./render.js";
-import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 
 const help = `Usage: redirect-trace <url> [options]
        redirect-trace --input <file> [options]

@@ -77,7 +77,7 @@ Trace a redirect map with `--input <file>` or `--input -` for stdin. With no pos
 redirect-trace --input redirects.txt --concurrency 4 --expect-status 200 --format markdown > audit.md
 ```
 
-Per-row expected finals use the strict comparator by default; `--lax` applies to every row. `--expect-final` and a positional URL cannot be combined with batch input. Batch requests use concurrency 2 by default, but requests from the same input hostname are always serialised. The batch exit status is the worst row result: any transport or row-parse failure is `3`; otherwise an assertion failure is `4`, flags give `1`, and a clean run is `0`. Usage failures remain `2`. Invalid input rows use the normal JSON trace shape where possible, including `initialMethod`, but have no `truncated` field because no trace was captured.
+Per-row expected finals use the strict comparator by default; `--lax` applies to every row. `--expect-final` and a positional URL cannot be combined with batch input. Batch requests use concurrency 2 by default, but requests from the same input hostname are always serialised. The batch exit status is the worst row result: any transport failure, row-parse failure, or engine hop limit is `3`; otherwise an assertion failure is `4`, flags give `1`, and a clean run is `0`. Usage failures remain `2`. Invalid input rows use the normal JSON trace shape where possible, including `initialMethod`, but have no `truncated` field because no trace was captured.
 
 Batch terminal output streams one result line as each row completes, followed by an input-ordered summary table. A flagged row's detail is its first observed flag; failures and assertion mismatches take precedence over flags.
 
@@ -113,7 +113,7 @@ Flags are observations for review, not assertions that a redirect is wrong.
 | `<url>` | required for a single trace | One `http` or `https` URL to trace. Omit when tracing batch input. |
 | `--method <M>` | `GET` | Method label for redirect-semantic analysis. Requests remain safe HEAD-then-GET with no body. |
 | `--format <fmt>` | `terminal` | `terminal`, `markdown`, or `json`. |
-| `--max-hops <n>` | `10` | When supplied, assert that the chain has at most `<n>` redirects; an exceeded assertion exits `4`. Without it, the default engine limit is 10 redirects and an exceeded limit exits `3`. |
+| `--max-hops <n>` | `10` | When supplied, assert that the chain has at most `<n>` redirects; an exceeded assertion exits `4`. Without it, the engine makes at most 10 requests per trace and an exceeded limit exits `3`. |
 | `--expect-final <url>` | | Require an exact terminal HTTP(S) URL. |
 | `--expect-status <code>` | | Require the terminal integer HTTP status. |
 | `--lax` | off | Apply the three fixed opt-in normalisations to the expected final URL. |
