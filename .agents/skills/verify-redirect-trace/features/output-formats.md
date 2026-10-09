@@ -8,7 +8,7 @@ The same trace renders as human terminal output, a Markdown document, or machine
 - `format-markdown` renders a `# Redirect trace` document with Hops, Flags, and Assertions sections.
 - `format-json` renders a single JSON object with `hops`, `flags`, `assertions`, `terminal`.
 - `format-invalid` rejects an unknown `--format` with exit 2.
-- `format-timing` adds `timingMs`/`elapsed` fields only under `--include-timing`.
+- `format-timing` adds `timingMs` to markdown/json only under `--include-timing` (terminal always renders `elapsed`).
 
 ## How to get to it (user POV)
 

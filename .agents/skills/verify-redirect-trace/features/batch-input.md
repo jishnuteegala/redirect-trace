@@ -9,7 +9,7 @@ Trace many URLs in one run from a file or stdin, with a per-row expected destina
 - `batch-stdin-piped` reads piped stdin with no flag at all.
 - `batch-expected` uses a second whitespace-separated column as that row's expected final URL.
 - `batch-summary` prints a `| URL | Final | Hops | Result | Detail |` table (also the markdown form).
-- `batch-exit-precedence` returns 3 when any row is transport/parse/hop-limit, else 4 on assertion failure, else 1 on flags, else 0.
+- `batch-exit-precedence` returns 3 when any row is transport, parse, or unprompted hop-limit, else 4 on assertion failure (including a hop-limit row under a supplied `--max-hops`), else 1 on flags, else 0.
 - `batch-bad-row` marks a malformed row `FAIL` in the table without aborting the rest.
 - `batch-missing-file` exits 2 with `could not read batch input: <os error>` on stderr.
 

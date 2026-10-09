@@ -25,7 +25,7 @@ Preconditions:
 - **Final fail.** Run `drive.mjs --name expect-final-fail -- --expect-final "$BASE/elsewhere" "$BASE/r/0"`. Exit 4; stdout contains `expect-final: expected`.
 - **Status fail.** Run `drive.mjs --name expect-status-fail -- --expect-status 201 "$BASE/end"`. Exit 4; stdout contains `expect-status: expected 201, got 200`.
 - **Max hops fail.** Run `drive.mjs --name max-hops-fail -- --max-hops 1 "$BASE/r/2"`. Exit 4; stdout contains a failing `max-hops` assertion.
-- **Lax pass.** Run `drive.mjs --name lax-normalization -- --expect-final "$BASE/end/" "$BASE/r/0"`. Exit 4 strict; rerun with `--lax` exits 0 with a `normalization` note.
+- **Lax pass.** Run `drive.mjs --name lax-normalization -- --format json --expect-final "$BASE/end/" "$BASE/r/0"`. Exit 4 strict; rerun adding `--lax` exits 0 and the `expect-final` assertion carries `"normalization": "trailing-slash"`. Terminal format prints only failed assertions - use JSON to observe the pass.
 - **Lax without expect.** Run `drive.mjs --name lax-requires-expect -- --lax "$BASE/r/0"`. Exit 2; stderr says `--lax requires --expect-final`.
 - **Proof.** Transcripts pair each invocation with exit code and the assertion line.
 
