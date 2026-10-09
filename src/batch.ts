@@ -1,5 +1,5 @@
 import { analyzeTrace } from "./analyze.js";
-import { evaluateAssertions } from "./assertions.js";
+import { evaluateAssertions, shouldEvaluateAssertions } from "./assertions.js";
 import { traceRedirects, type TraceOptions } from "./engine.js";
 import type { AnalyzedTrace } from "./model.js";
 
@@ -17,13 +17,6 @@ export type BatchResult = {
   analyzed?: AnalyzedTrace;
   outcome?: "complete" | "hop-limit" | "transport";
 };
-
-export function shouldEvaluateAssertions(
-  outcome: BatchResult["outcome"],
-  maxHopsSupplied: boolean,
-): boolean {
-  return outcome === "complete" || (outcome === "hop-limit" && maxHopsSupplied);
-}
 
 export function parseBatchInput(input: string): BatchRow[] {
   const lines = input === "" ? [] : input.replace(/\r?\n$/, "").split(/\r?\n/);
@@ -126,22 +119,4 @@ export async function traceBatch(
     };
     start();
   });
-}
-
-export function batchExitCode(results: BatchResult[]): number {
-  let code = 0;
-  for (const result of results) {
-    if (
-      result.row.error !== undefined ||
-      result.outcome === "transport" ||
-      (result.outcome === "hop-limit" &&
-        !result.analyzed?.assertions.some((assertion) => !assertion.passed))
-    )
-      return 3;
-    if (result.analyzed?.assertions.some((assertion) => !assertion.passed))
-      code = Math.max(code, 4);
-    else if (result.analyzed !== undefined && result.analyzed.flags.length > 0)
-      code = Math.max(code, 1);
-  }
-  return code;
 }

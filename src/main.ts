@@ -2,14 +2,9 @@ import { readFile } from "node:fs/promises";
 import { version } from "./version.js";
 import { traceRedirects } from "./engine.js";
 import { analyzeTrace } from "./analyze.js";
-import { evaluateAssertions } from "./assertions.js";
-import {
-  batchExitCode,
-  inputLineCap,
-  parseBatchInput,
-  shouldEvaluateAssertions,
-  traceBatch,
-} from "./batch.js";
+import { evaluateAssertions, shouldEvaluateAssertions } from "./assertions.js";
+import { batchExitCode, traceExitCode } from "./exit-code.js";
+import { inputLineCap, parseBatchInput, traceBatch } from "./batch.js";
 import {
   renderBatchJson,
   renderBatchSummary,
@@ -216,17 +211,12 @@ if (options.input !== undefined) {
         ? renderJson(analyzed)
         : renderTerminal(analyzed);
   process.stdout.write(output);
-  if (
-    result.outcome === "transport" ||
-    (result.outcome === "hop-limit" && !options.maxHopsSupplied)
-  )
+  const code = traceExitCode({
+    outcome: result.outcome,
+    assertions: analyzed.assertions,
+    flags: analyzed.flags,
+  });
+  if (code === 3)
     process.stderr.write(`${result.trace.failure ?? result.trace.hops.at(-1)?.error}\n`);
-  process.exitCode =
-    result.outcome === "transport" || (result.outcome === "hop-limit" && !options.maxHopsSupplied)
-      ? 3
-      : analyzed.assertions.some((assertion) => !assertion.passed)
-        ? 4
-        : analyzed.flags.length > 0
-          ? 1
-          : 0;
+  process.exitCode = code;
 }
