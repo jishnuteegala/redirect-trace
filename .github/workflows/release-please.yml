@@ -85,6 +85,13 @@ jobs:
         run: gh release upload "$TAG" ./*-dist.tar.gz SHA256SUMS --clobber
       - name: Install npm with trusted publishing support
         run: npm install --global npm@12.0.1
+      - name: Smoke test the packed tarball
+        run: |
+          npm pack --silent
+          mkdir smoke && cd smoke
+          npm init --yes >/dev/null
+          npm install --no-audit --no-fund "../redirect-trace-${TAG#v}.tgz"
+          test "$(./node_modules/.bin/redirect-trace --version)" = "${TAG#v}"
       - name: Publish package to npm
         run: npm publish --provenance
       - name: Publish GitHub release

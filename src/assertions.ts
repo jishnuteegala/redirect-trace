@@ -1,4 +1,4 @@
-import type { Assertion, Trace } from "./model.js";
+import type { Assertion, Trace, TraceResult } from "./model.js";
 import { decode } from "./param-diff.js";
 
 export type AssertionOptions = {
@@ -69,6 +69,13 @@ function indeterminateAssertion(
     passed: false,
     note: "not evaluated: chain did not terminate",
   };
+}
+
+export function shouldEvaluateAssertions(
+  outcome: TraceResult["outcome"],
+  maxHopsSupplied: boolean,
+): boolean {
+  return outcome === "complete" || (outcome === "hop-limit" && maxHopsSupplied);
 }
 
 export function evaluateAssertions(trace: Trace, options: AssertionOptions): Assertion[] {

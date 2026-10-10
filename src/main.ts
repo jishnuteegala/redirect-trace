@@ -1,23 +1,18 @@
+import { readFile } from "node:fs/promises";
+import { version } from "./version.js";
 import { traceRedirects } from "./engine.js";
 import { analyzeTrace } from "./analyze.js";
-import { evaluateAssertions } from "./assertions.js";
-import {
-  batchExitCode,
-  inputLineCap,
-  parseBatchInput,
-  shouldEvaluateAssertions,
-  traceBatch,
-} from "./batch.js";
+import { evaluateAssertions, shouldEvaluateAssertions } from "./assertions.js";
+import { batchExitCode, traceExitCode } from "./exit-code.js";
+import { inputLineCap, parseBatchInput, traceBatch } from "./batch.js";
 import {
   renderBatchJson,
-  renderBatchMarkdown,
-  renderBatchTerminal,
+  renderBatchSummary,
   renderBatchTerminalLine,
   renderJson,
   renderMarkdown,
   renderTerminal,
 } from "./render.js";
-import { readFile } from "node:fs/promises";
 
 const help = `Usage: redirect-trace <url> [options]
        redirect-trace --input <file> [options]
@@ -33,7 +28,7 @@ Options:
   --show-secrets     Render sensitive query values
   --ignore-params-loop  Detect loops with query parameters removed
   --include-timing   Include timing in markdown/json (not deterministic)
-  --input <file>     Trace URL rows from a file (use - for stdin)
+  --input <file>     Trace URL rows from a file (use - for stdin; default when stdin is piped)
   --concurrency <n>  Batch traces across hosts (default: 2)
   --help             Show this help
   --version          Show version
@@ -41,6 +36,8 @@ Options:
 Examples:
   redirect-trace https://example.com
   redirect-trace https://example.com --format markdown > trace.md
+  redirect-trace https://old.example.com/docs --expect-final https://example.com/docs --max-hops 2
+  redirect-trace --input redirects.txt --expect-status 200
 
 Exit codes:
   0 clean     resolved with no flags
@@ -93,7 +90,7 @@ function parseArgs(args: string[]) {
       process.exit(0);
     }
     if (argument === "--version") {
-      process.stdout.write("0.1.0\n");
+      process.stdout.write(`${version}\n`);
       process.exit(0);
     }
     if (argument === "--method")
@@ -177,8 +174,8 @@ if (options.input !== undefined) {
   let input: string;
   try {
     input = options.input === "-" ? await readStdin() : await readFile(options.input, "utf8");
-  } catch {
-    usage(`could not read batch input: ${options.input}`);
+  } catch (error) {
+    usage(`could not read batch input: ${error instanceof Error ? error.message : String(error)}`);
   }
   let rows;
   try {
@@ -194,11 +191,9 @@ if (options.input !== undefined) {
       process.stdout.write(`${renderBatchTerminalLine(result, options.showSecrets)}\n`);
   });
   process.stdout.write(
-    options.format === "markdown"
-      ? renderBatchMarkdown(results, options.showSecrets)
-      : options.format === "json"
-        ? renderBatchJson(results, options.showSecrets, options.initialMethod)
-        : renderBatchTerminal(results, options.showSecrets),
+    options.format === "json"
+      ? renderBatchJson(results, options.showSecrets, options.initialMethod)
+      : renderBatchSummary(results, options.showSecrets),
   );
   process.exitCode = batchExitCode(results);
 } else {
@@ -216,17 +211,12 @@ if (options.input !== undefined) {
         ? renderJson(analyzed)
         : renderTerminal(analyzed);
   process.stdout.write(output);
-  if (
-    result.outcome === "transport" ||
-    (result.outcome === "hop-limit" && !options.maxHopsSupplied)
-  )
+  const code = traceExitCode({
+    outcome: result.outcome,
+    assertions: analyzed.assertions,
+    flags: analyzed.flags,
+  });
+  if (code === 3)
     process.stderr.write(`${result.trace.failure ?? result.trace.hops.at(-1)?.error}\n`);
-  process.exitCode =
-    result.outcome === "transport" || (result.outcome === "hop-limit" && !options.maxHopsSupplied)
-      ? 3
-      : analyzed.assertions.some((assertion) => !assertion.passed)
-        ? 4
-        : analyzed.flags.length > 0
-          ? 1
-          : 0;
+  process.exitCode = code;
 }

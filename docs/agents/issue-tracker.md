@@ -8,4 +8,4 @@ PRs as a request surface: off.
 
 Triage labels: defaults (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
 
-Domain docs: single-context - `CONTEXT.md` at repo root, ADRs under `docs/adr/`.
+Domain docs: `docs/` holds them (the incident log is `redirect-incidents.md`). There is no `CONTEXT.md` or ADR directory yet.
