@@ -1,6 +1,6 @@
 {
   "name": "redirect-trace",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Trace HTTP redirect chains locally with query diffs, risk flags, and CI-safe exit codes.",
   "keywords": [
     "redirect",
