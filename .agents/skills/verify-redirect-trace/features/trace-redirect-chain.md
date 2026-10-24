@@ -10,7 +10,7 @@ The core feature: follow a URL's redirect chain hop by hop and report each statu
 - `chain-hop-limit` stops at the engine limit (10 hops unprompted) and exits 3.
 - `chain-no-location` exits 3 when a redirect response has no `Location`.
 - `chain-bad-location` exits 3 when `Location` is invalid.
-- `chain-head-fallback` retries with GET when HEAD is refused (405/501).
+- `chain-head-fallback` retries with GET when HEAD throws a non-timeout error or returns 405/501 (other HTTP error statuses are returned as HEAD results, not retried).
 - `chain-offline` exits 3 when the host cannot be reached.
 
 ## How to get to it (user POV)
@@ -25,7 +25,7 @@ Preconditions:
 
 - **Chain.** Run `drive.mjs --name chain-follow -- "$BASE/r/2"`. Exit 0; stdout lists three `->` hops ending at a `200` line for `/end`.
 - **Loop.** Run `drive.mjs --name chain-loop -- "$BASE/loop"`. Exit 1; stdout contains `flag: loop` and stops at the repeat.
-- **Hop limit.** Run `drive.mjs --name chain-hop-limit -- "$BASE/r/20"`. Exit 3; stdout ends with `ERROR: hop limit of 10 exceeded` and stderr repeats it.
+- **Hop limit.** Run `drive.mjs --name chain-hop-limit -- "$BASE/r/20"`. Exit 3; stdout ends with `ERROR: hop limit of 10 exceeded` and stderr carries the same message without the `ERROR:` prefix.
 - **Missing Location.** Run `drive.mjs --name chain-no-location -- "$BASE/no-location"`. Exit 3; stdout hop shows `redirect response has no Location header`.
 - **Invalid Location.** Run `drive.mjs --name chain-bad-location -- "$BASE/bad-location"`. Exit 3; stdout hop shows `invalid Location header`.
 - **HEAD fallback.** Run `drive.mjs --name chain-head-fallback -- --format json "$BASE/head-405"`. Exit 0 or 1; hop 0 has `"requestMethod": "GET"` - the engine fell back after the 405.
