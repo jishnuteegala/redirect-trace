@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.1](https://github.com/jishnuteegala/redirect-trace/compare/v0.2.0...v0.2.1) (2026-10-24)
+
+
+### Features
+
+* record docs, build, and ci commits in changelogs ([#27](https://github.com/jishnuteegala/redirect-trace/issues/27)) ([11feead](https://github.com/jishnuteegala/redirect-trace/commit/11feead72c2e7a105dffdabe8c01ead90f0f1b8d))
+
+
+### Bug Fixes
+
+* report real version; quality pass over CLI surface and docs ([#30](https://github.com/jishnuteegala/redirect-trace/issues/30)) ([68a8260](https://github.com/jishnuteegala/redirect-trace/commit/68a8260b7a38615b67e6cfcad59347b381e2b7e8))
+
+
+### Documentation
+
+* tighten verify-redirect-trace map against live output ([#31](https://github.com/jishnuteegala/redirect-trace/issues/31)) ([363b2c0](https://github.com/jishnuteegala/redirect-trace/commit/363b2c02e864655d1267dd87fad15ef442199594))
+
+
+### Continuous Integration
+
+* use shared app-ci workflow ([#24](https://github.com/jishnuteegala/redirect-trace/issues/24)) ([6b47ea7](https://github.com/jishnuteegala/redirect-trace/commit/6b47ea7d42a9ba6d0d4ed5f035d9eb64854aef17))
+
 ## [0.2.0](https://github.com/jishnuteegala/redirect-trace/compare/v0.1.0...v0.2.0) (2026-08-03)
 
 
