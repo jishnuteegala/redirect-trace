@@ -11,7 +11,7 @@ The exit code is the whole reason the tool exists in CI: a gate job trusts that 
 
 `check.mts` runs the **real** `traceExitCode()` and `batchExitCode()` - not a hand model - over every input class: 3 outcomes x 3 assertion classes x 2 flag classes = 18 trace combos, all 584 ordered row sequences of length 1-3 over eight row classes (error, empty-error, skip, analyzed-without-outcome, clean, flagged, transport, assertion-fail), plus all 5040 permutations of a mixed multiset for order invariance. Each `FAIL` prints the first failing input plus a count of the rest.
 
-Two of the 18 trace combos are unreachable by design today: `transport` rows never carry assertions (`shouldEvaluateAssertions` returns false for them), so the two transport+assertion cells exist only to pin the precedence - if either fails, read it as "precedence changed", not "class drifted".
+Four of the 18 trace combos are unreachable by design today: `transport` rows never carry assertions (`shouldEvaluateAssertions` returns false for them), so the four transport+assertion cells (2 non-empty assertion classes x 2 flag classes) exist only to pin the precedence - if any fails, read it as "precedence changed", not "class drifted".
 
 ## Run
 
@@ -29,13 +29,13 @@ Requires Node >= 22.18 (native TypeScript type-stripping; verified on v24). No i
 
 **Sync commit:** `68a8260` (committed 2026-10-10; verified in sync on 2026-10-24). Move this forward only after re-running the check and confirming the contract describes the code at the new commit.
 
-`check.mts` sits outside every tsconfig (repo `tsc` covers `src/` and `test/` only), so type-level drift in its fixture types is caught by `oxlint`/the run itself, not the repo gate.
+`check.mts` sits outside every tsconfig (repo `tsc` covers `src/` and `test/` only) and outside `oxlint .` (the `.agents/` tree is hidden and skipped), and Node type-stripping performs no typecheck - nothing automated catches type-level drift in its fixtures. The run still catches behavior-level drift (a renamed field makes the fixture's value invisible to the new shape and the check fails), but a type-only change like a new required field passes silently: re-read `Assertion`, `Flag`, `BatchResult`, and `outcome` when updating.
 
 Not covered, on purpose: `assertions.ts` (what makes an assertion fail is policy, verified separately), `analyze.ts` (which flags get emitted), and `cli.ts` (that the computed code reaches `process.exit` - covered by the runtime drives in `verify-redirect-trace`).
 
 ## Reading a failure
 
-A `FAIL` prints the inputs (`outcome=hop-limit asserts=1 flags=0: got 3 want 4`) - map them straight back to the guard in `src/exit-code.ts`. If the printed pair is legal input, the precedence or aggregation logic regressed; confirm against the contract table above and the runtime drive in `verify-redirect-trace`. If the input cannot occur (e.g. an outcome value outside the three), the check's class lists drifted from the types - update `outcomes`/`classes` in `check.mts`.
+A `FAIL` prints the inputs (`outcome=hop-limit asserts=2 flags=0: got 3 want 4`) - map them straight back to the guard in `src/exit-code.ts`. If the printed pair is legal input, the precedence or aggregation logic regressed; confirm against the contract table above and the runtime drive in `verify-redirect-trace`. If the input cannot occur (e.g. an outcome value outside the three), the check's class lists drifted from the types - update `outcomes`/`classes` in `check.mts`.
 
 ## Updating the verification
 
