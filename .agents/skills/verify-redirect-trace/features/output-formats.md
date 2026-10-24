@@ -5,10 +5,10 @@ The same trace renders as human terminal output, a Markdown document, or machine
 ## Sub-features
 
 - `format-terminal` renders numbered hops with `->` destinations (default).
-- `format-markdown` renders a `# Redirect trace` document with Hops, Flags, and Assertions sections.
+- `format-markdown` renders a `# Redirect trace` document with Hops and Flags sections (an Assertions section appears only when `--expect-*`/`--max-hops` assertions were supplied).
 - `format-json` renders a single JSON object with `hops`, `flags`, `assertions`, `terminal`.
 - `format-invalid` rejects an unknown `--format` with exit 2.
-- `format-timing` adds `timingMs` to JSON and `- Timing: <n>ms` to markdown only under `--include-timing` (terminal renders `elapsed` on the terminal hop of completed traces).
+- `format-timing` adds `timingMs` to JSON and `- Timing: <n>ms` to markdown only under `--include-timing` (both are scoped to the terminal hop; terminal renders `elapsed` plus a trailing `Terminal elapsed: <n>ms` line only when the trace ends in a non-redirect response).
 
 ## How to get to it (user POV)
 
