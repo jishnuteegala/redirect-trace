@@ -10,7 +10,7 @@ The core feature: follow a URL's redirect chain hop by hop and report each statu
 - `chain-hop-limit` stops at the engine limit (10 hops unprompted) and exits 3.
 - `chain-no-location` exits 3 when a redirect response has no `Location`.
 - `chain-bad-location` exits 3 when `Location` is invalid.
-- `chain-head-fallback` retries with GET on any non-timeout HEAD request failure (405/501 are the common cases, not the only ones).
+- `chain-head-fallback` retries with GET when HEAD throws a non-timeout error or returns 405/501 (other HTTP error statuses are returned as HEAD results, not retried).
 - `chain-offline` exits 3 when the host cannot be reached.
 
 ## How to get to it (user POV)
