@@ -74,7 +74,14 @@ const analyzed = (assertions: Assertion[], flags: Flag[]): AnalyzedTrace => ({
   includeTiming: false,
 });
 const E = (): BatchResult => ({ row: { url: "u", error: "bad url" } });
+const E0 = (): BatchResult => ({ row: { url: "u", error: "" } }); // defined-but-empty: still an error row
 const S = (): BatchResult => ({ row: { url: "u" } }); // no outcome: skipped
+const U = (): BatchResult => ({
+  // analyzed present but outcome undefined: the outcome===undefined skip must
+  // fire before assertions/flags are read, else this contributes 4 not 0.
+  row: { url: "u" },
+  analyzed: analyzed([failA], [flag]),
+});
 const C0 = (): BatchResult => ({
   row: { url: "u" },
   outcome: "complete",
@@ -95,13 +102,13 @@ const A4 = (): BatchResult => ({
   outcome: "complete",
   analyzed: analyzed([failA], [flag]),
 });
-const classes = { E, S, C0, F1, X3, A4 } as const;
+const classes = { E, E0, S, U, C0, F1, X3, A4 } as const;
 type ClassName = keyof typeof classes;
 
 // Reference: any 3-class row (error, or traceExitCode 3) forces 3;
 // otherwise worst-of over 4 > 1 > 0, skips contribute nothing.
 function refBatch(names: ClassName[]): number {
-  if (names.some((n) => n === "E" || n === "X3")) return 3;
+  if (names.some((n) => n === "E" || n === "E0" || n === "X3")) return 3;
   if (names.includes("A4")) return 4;
   if (names.includes("F1")) return 1;
   return 0;
@@ -114,9 +121,9 @@ if (batchExitCode([S(), S()]) !== 0) b.push(`[S,S] -> ${batchExitCode([S(), S()]
 if (batchExitCode([A4(), E()]) !== 3) b.push(`[A4,E] -> ${batchExitCode([A4(), E()])} want 3`);
 check("B1-B3 edge cases: empty -> 0, all-skip -> 0, error row -> 3", b);
 
-// B4: every ordered sequence of length 1..3 over the six classes (258 runs).
+// B4: every ordered sequence of length 1..3 over the eight classes.
 const b4: string[] = [];
-const names: ClassName[] = ["E", "S", "C0", "F1", "X3", "A4"];
+const names: ClassName[] = ["E", "E0", "S", "U", "C0", "F1", "X3", "A4"];
 function* seqs(len: number, prefix: ClassName[] = []): Generator<ClassName[]> {
   if (prefix.length === len) {
     yield prefix;
@@ -124,16 +131,18 @@ function* seqs(len: number, prefix: ClassName[] = []): Generator<ClassName[]> {
   }
   for (const n of names) yield* seqs(len, [...prefix, n]);
 }
+let seqCount = 0;
 for (const len of [1, 2, 3])
   for (const seq of seqs(len)) {
+    seqCount++;
     const got = batchExitCode(seq.map((n) => classes[n]()));
     const want = refBatch(seq);
     if (got !== want) b4.push(`[${seq.join(",")}] -> ${got} want ${want}`);
   }
-check("B4 batchExitCode: all 258 ordered row-class sequences aggregate worst-of", b4);
+check(`B4 batchExitCode: all ${seqCount} ordered row-class sequences aggregate worst-of`, b4);
 
 // B5: order invariance on the full mixed multiset.
-const multiset: ClassName[] = ["S", "C0", "F1", "A4", "E", "X3"];
+const multiset: ClassName[] = ["S", "U", "C0", "F1", "A4", "E", "X3"];
 const perms: ClassName[][] = [];
 function* permsOf(rest: ClassName[], prefix: ClassName[] = []): Generator<ClassName[]> {
   if (rest.length === 0) {
@@ -165,7 +174,7 @@ for (const [outcome, want] of b6cases) {
 check("B6 analyzed=undefined rows still honor their outcome", b6);
 
 if (failures === 0) {
-  console.log(`\nALL CHECKS HOLD: 18 trace combos, ${258 + perms.length + 9} batch runs`);
+  console.log(`\nALL CHECKS HOLD: 18 trace combos, ${seqCount + perms.length + 6} batch runs`);
 } else {
   console.log(`\n${failures} check(s) FAILED`);
   process.exit(1);
