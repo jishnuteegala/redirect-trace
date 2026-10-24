@@ -1,5 +1,5 @@
 import { traceExitCode, batchExitCode } from "../../../src/exit-code.ts";
-import type { Assertion, AnalyzedTrace, Flag } from "../../../src/model.ts";
+import type { Assertion, AnalyzedTrace, Flag, Trace } from "../../../src/model.ts";
 import type { BatchResult } from "../../../src/batch.ts";
 
 // Exhaustive verifier for src/exit-code.ts.
@@ -55,8 +55,24 @@ for (const outcome of outcomes)
 check("T1 traceExitCode: all 18 input classes produce the documented code", t1);
 
 // Batch row classes, labeled by the code they contribute.
-const analyzed = (assertions: Assertion[], flags: Flag[]) =>
-  ({ assertions, flags }) as unknown as AnalyzedTrace;
+const emptyTrace: Trace = {
+  startUrl: "https://example.com",
+  initialMethod: "HEAD",
+  hops: [],
+  terminal: { status: null, url: "https://example.com" },
+  hopLimit: 0,
+  timeoutMs: 0,
+  truncated: false,
+  loopDetected: false,
+};
+const analyzed = (assertions: Assertion[], flags: Flag[]): AnalyzedTrace => ({
+  trace: emptyTrace,
+  hops: [],
+  flags,
+  assertions,
+  showSecrets: false,
+  includeTiming: false,
+});
 const E = (): BatchResult => ({ row: { url: "u", error: "bad url" } });
 const S = (): BatchResult => ({ row: { url: "u" } }); // no outcome: skipped
 const C0 = (): BatchResult => ({
@@ -100,7 +116,7 @@ check("B1-B3 edge cases: empty -> 0, all-skip -> 0, error row -> 3", b);
 
 // B4: every ordered sequence of length 1..3 over the six classes (258 runs).
 const b4: string[] = [];
-const names = Object.keys(classes) as ClassName[];
+const names: ClassName[] = ["E", "S", "C0", "F1", "X3", "A4"];
 function* seqs(len: number, prefix: ClassName[] = []): Generator<ClassName[]> {
   if (prefix.length === len) {
     yield prefix;
@@ -124,8 +140,8 @@ function* permsOf(rest: ClassName[], prefix: ClassName[] = []): Generator<ClassN
     yield prefix;
     return;
   }
-  for (let i = 0; i < rest.length; i++)
-    yield* permsOf([...rest.slice(0, i), ...rest.slice(i + 1)], [...prefix, rest[i]!]);
+  for (const [i, item] of rest.entries())
+    yield* permsOf([...rest.slice(0, i), ...rest.slice(i + 1)], [...prefix, item]);
 }
 for (const p of permsOf(multiset)) perms.push(p);
 const b5 = perms
