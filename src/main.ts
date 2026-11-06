@@ -29,7 +29,7 @@ Options:
   --ignore-params-loop  Detect loops with query parameters removed
   --include-timing   Include timing in markdown/json (not deterministic)
   --input <file>     Trace URL rows from a file (use - for stdin; default when stdin is piped)
-  --concurrency <n>  Batch traces across hosts (default: 2)
+  --concurrency <n>  Batch traces across hosts (default: 8)
   --help             Show this help
   --version          Show version
 
@@ -81,7 +81,7 @@ function parseArgs(args: string[]) {
   let ignoreParamsLoop = false;
   let includeTiming = false;
   let input: string | undefined;
-  let concurrency = 2;
+  let concurrency = 8;
   let concurrencySupplied = false;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
