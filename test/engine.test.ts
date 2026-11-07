@@ -66,7 +66,7 @@ async function serve(handler: RequestListener, host = "127.0.0.1") {
   await new Promise<void>((resolve) => server.listen(0, host, resolve));
   const address = server.address();
   if (address === null || typeof address === "string") throw new Error("server did not start");
-  return `http://${host}:${address.port}`;
+  return `http://${host.includes(":") ? `[${host}]` : host}:${address.port}`;
 }
 
 async function serveHttps(handler: RequestListener) {
@@ -751,6 +751,27 @@ describe("redirect engine", () => {
     await writeFile(distinctHosts, `${base}/three\n${other}/four\n`);
     await runCli("--input", distinctHosts, "--concurrency", "2");
     expect(peak).toBeGreaterThanOrEqual(2);
+  });
+
+  it("runs more than two distinct batch hosts at once without --concurrency", async () => {
+    let active = 0;
+    let peak = 0;
+    const handler: RequestListener = (_request, response) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      setTimeout(() => {
+        active -= 1;
+        response.writeHead(200).end();
+      }, 100);
+    };
+    const bases = await Promise.all(
+      ["127.0.0.1", "localhost", "::1"].map((host) => serve(handler, host)),
+    );
+    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
+    const input = join(directory, "map.txt");
+    await writeFile(input, bases.map((base) => `${base}/row\n`).join(""));
+    expect((await runCli("--input", input)).code).toBe(0);
+    expect(peak).toBe(3);
   });
 
   it("rejects invalid batch combinations and the input cap before tracing", async () => {
