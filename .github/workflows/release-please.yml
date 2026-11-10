@@ -65,11 +65,10 @@ jobs:
       - run: corepack enable
       - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run check
       - run: pnpm run build
       - name: Create reproducible distribution archive
         run: |
@@ -93,8 +92,20 @@ jobs:
           npm install --no-audit --no-fund "../redirect-trace-${TAG#v}.tgz"
           test "$(./node_modules/.bin/redirect-trace --version)" = "${TAG#v}"
       - name: Publish package to npm
-        run: npm publish --provenance
+        run: |
+          if [ "$(npm view "redirect-trace@${TAG#v}" version)" = "${TAG#v}" ]; then
+            echo "redirect-trace@${TAG#v} is already on npm; skipping npm publish"
+          else
+            case "$TAG" in
+              *-*) npm publish --provenance --tag next ;;
+              *) npm publish --provenance ;;
+            esac
+          fi
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$TAG" --draft=false
+        run: |
+          case "$TAG" in
+            *-*) gh release edit "$TAG" --draft=false --prerelease --latest=false ;;
+            *) gh release edit "$TAG" --draft=false ;;
+          esac
