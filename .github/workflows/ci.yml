@@ -23,9 +23,3 @@ jobs:
     uses: jishnuteegala/.github/.github/workflows/app-ci.yml@v1
     with:
       os: '["windows-latest"]'
-
-  node26:
-    uses: jishnuteegala/.github/.github/workflows/app-ci.yml@129e56114c4903f7d17dccaaaad6d5a1d300aed1
-    with:
-      os: '["windows-latest"]'
-      node-version: "26"
