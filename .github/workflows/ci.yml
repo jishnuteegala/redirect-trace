@@ -18,3 +18,13 @@ jobs:
     uses: jishnuteegala/.github/.github/workflows/app-ci.yml@v1
     with:
       os: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+
+  corepack:
+    uses: jishnuteegala/.github/.github/workflows/app-ci.yml@c3fe7b2f4aad5283e67c556400180380f5889e23
+    with:
+      os: '["windows-latest"]'
+
+  standalone:
+    uses: jishnuteegala/.github/.github/workflows/app-ci.yml@1480a79633b00b671a718c48e6e20c117554cd7a
+    with:
+      os: '["windows-latest"]'
