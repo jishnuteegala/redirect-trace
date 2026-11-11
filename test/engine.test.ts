@@ -121,6 +121,24 @@ async function runCli(...args: string[]) {
   }
 }
 
+async function defaultBatchPeak(hosts: string[]) {
+  let active = 0;
+  let peak = 0;
+  const handler: RequestListener = (_request, response) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    setTimeout(() => {
+      active -= 1;
+      response.writeHead(200).end();
+    }, 100);
+  };
+  const bases = await Promise.all(hosts.map((host) => serve(handler, host)));
+  const input = join(await mkdtemp(join(tmpdir(), "redirect-trace-")), "map.txt");
+  await writeFile(input, bases.map((base) => `${base}/row\n`).join(""));
+  const { code } = await runCli("--input", input);
+  return { code, peak };
+}
+
 it("prints the package version", async () => {
   const manifest = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -754,25 +772,17 @@ describe("redirect engine", () => {
   });
 
   it("runs more than two distinct batch hosts at once without --concurrency", async () => {
-    let active = 0;
-    let peak = 0;
-    const handler: RequestListener = (_request, response) => {
-      active += 1;
-      peak = Math.max(peak, active);
-      setTimeout(() => {
-        active -= 1;
-        response.writeHead(200).end();
-      }, 100);
-    };
-    const bases = await Promise.all(
-      ["127.0.0.1", "localhost", "::1"].map((host) => serve(handler, host)),
-    );
-    const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
-    const input = join(directory, "map.txt");
-    await writeFile(input, bases.map((base) => `${base}/row\n`).join(""));
-    expect((await runCli("--input", input)).code).toBe(0);
-    expect(peak).toBe(3);
+    expect(await defaultBatchPeak(["127.0.0.1", "localhost", "::1"])).toEqual({ code: 0, peak: 3 });
   });
+
+  // macOS assigns only 127.0.0.1 on lo0, so the other 127/8 addresses cannot be bound there.
+  it.skipIf(process.platform === "darwin")(
+    "caps distinct batch hosts at four in flight without --concurrency",
+    async () => {
+      const hosts = [1, 2, 3, 4, 5].map((n) => `127.0.0.${n}`);
+      expect(await defaultBatchPeak(hosts)).toEqual({ code: 0, peak: 4 });
+    },
+  );
 
   it("rejects invalid batch combinations and the input cap before tracing", async () => {
     const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
