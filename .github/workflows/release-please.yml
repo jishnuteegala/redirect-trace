@@ -41,6 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      actions: read
       contents: write
       id-token: write
     env:
@@ -70,6 +71,10 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
+      - name: Compare with the CI build
+        uses: jishnuteegala/.github/actions/dist-manifest@50e7c2dbdb7f1430986ef67760fc9c790c9e4e31 # v1
+        with:
+          mode: compare
       - name: Create reproducible distribution archive
         run: |
           SOURCE_DATE_EPOCH=$(git log -1 --format=%ct "$TAG")
