@@ -66,7 +66,7 @@ async function serve(handler: RequestListener, host = "127.0.0.1") {
   await new Promise<void>((resolve) => server.listen(0, host, resolve));
   const address = server.address();
   if (address === null || typeof address === "string") throw new Error("server did not start");
-  return `http://${host}:${address.port}`;
+  return `http://${host.includes(":") ? `[${host}]` : host}:${address.port}`;
 }
 
 async function serveHttps(handler: RequestListener) {
@@ -119,6 +119,24 @@ async function runCli(...args: string[]) {
     }
     throw error;
   }
+}
+
+async function batchPeak(hosts: string[], ...args: string[]) {
+  let active = 0;
+  let peak = 0;
+  const handler: RequestListener = (_request, response) => {
+    active += 1;
+    peak = Math.max(peak, active);
+    setTimeout(() => {
+      active -= 1;
+      response.writeHead(200).end();
+    }, 100);
+  };
+  const bases = await Promise.all(hosts.map((host) => serve(handler, host)));
+  const input = join(await mkdtemp(join(tmpdir(), "redirect-trace-")), "map.txt");
+  await writeFile(input, bases.map((base) => `${base}/row\n`).join(""));
+  const { code } = await runCli("--input", input, ...args);
+  return { code, peak };
 }
 
 it("prints the package version", async () => {
@@ -718,7 +736,7 @@ describe("redirect engine", () => {
     );
   });
 
-  it("serializes batch requests for one host and bounds distinct-host concurrency", async () => {
+  it("serializes batch requests for one host", async () => {
     let active = 0;
     let peak = 0;
     const order: string[] = [];
@@ -737,21 +755,25 @@ describe("redirect engine", () => {
     await runCli("--input", sameHost, "--concurrency", "4");
     expect(peak).toBe(1);
     expect(order).toEqual(["/one", "/two"]);
-    active = 0;
-    peak = 0;
-    const other = await serve((request, response) => {
-      active += 1;
-      peak = Math.max(peak, active);
-      setTimeout(() => {
-        active -= 1;
-        response.writeHead(200).end();
-      }, 25);
-    }, "localhost");
-    const distinctHosts = join(directory, "distinct.txt");
-    await writeFile(distinctHosts, `${base}/three\n${other}/four\n`);
-    await runCli("--input", distinctHosts, "--concurrency", "2");
-    expect(peak).toBeGreaterThanOrEqual(2);
   });
+
+  it("caps distinct batch hosts at the --concurrency value", async () => {
+    const hosts = ["127.0.0.1", "localhost", "::1"];
+    expect(await batchPeak(hosts, "--concurrency", "2")).toEqual({ code: 0, peak: 2 });
+  });
+
+  it("runs more than two distinct batch hosts at once without --concurrency", async () => {
+    expect(await batchPeak(["127.0.0.1", "localhost", "::1"])).toEqual({ code: 0, peak: 3 });
+  });
+
+  // macOS assigns only 127.0.0.1 on lo0, so the other 127/8 addresses cannot be bound there.
+  it.skipIf(process.platform === "darwin")(
+    "caps distinct batch hosts at four in flight without --concurrency",
+    async () => {
+      const hosts = [1, 2, 3, 4, 5].map((n) => `127.0.0.${n}`);
+      expect(await batchPeak(hosts)).toEqual({ code: 0, peak: 4 });
+    },
+  );
 
   it("rejects invalid batch combinations and the input cap before tracing", async () => {
     const directory = await mkdtemp(join(tmpdir(), "redirect-trace-"));
