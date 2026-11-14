@@ -47,7 +47,7 @@ node .agents/skills/verify-redirect-trace/helpers/drive.mjs --name <label> -- <c
 node .agents/skills/verify-redirect-trace/helpers/drive.mjs --name batch --stdin-file rows.txt -- --input -
 ```
 
-The helper prints the transcript path and `exit=<code>`, and exits with the CLI's own code so `&&`/`||` work.
+The helper prints the transcript path and `exit=<code>`, and exits with the CLI's own code so `&&`/`||` work. The child gets stdin `"ignore"` unless `--stdin-file` is given - so a drive with no positional URL and no `--input` becomes an empty-stdin batch run (`batch input contains no usable rows`, exit 2), not the flag's own usage error; every flag-validation recipe needs a URL or explicit stdin.
 
 The fixture menu (all paths on `FIXTURE_BASE`):
 
