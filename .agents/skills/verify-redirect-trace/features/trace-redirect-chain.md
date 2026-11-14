@@ -36,5 +36,7 @@ Preconditions:
 
 - `/r/<n>` counts down: `/r/0` itself redirects to `/end`, so `/r/2` is a 3-redirect chain. Pick `n` accordingly for hop-limit proofs.
 - The unprompted limit is 10 hops (requests), not 10 redirects - a completed chain can contain at most 9 redirects under it.
-- Transports print the error to stderr AND as the terminal hop detail on stdout; check both.
+- Transports print the error to stderr AND as the terminal hop detail on stdout; check both. The transport strings are `request failed` (any non-timeout request-execution error; Location-header failures carry their own strings) and `request timed out` (a timeout is never retried with GET - non-timeout errors are).
+- On a loop the `terminal` object holds the repeated redirect's own status (302 at the fixture), not a non-redirect status - `chain-terminal`'s "final non-redirect status" only holds for chains that terminate.
+- `--timeout <ms>` (default 10000) bounds the shared HEAD+GET deadline per hop; `--method` is an analysis label only - the wire method is always HEAD with GET fallback.
 - Windows process spawn is slow; do not mistake spawn latency for a hang.

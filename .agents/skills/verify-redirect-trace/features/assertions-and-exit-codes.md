@@ -34,3 +34,6 @@ Preconditions:
 - With `--max-hops` supplied, exceeding it is an assertion failure (4); without it, the engine limit is transport-class (3). Same chain, different exit.
 - `--expect-final` is single-trace only; batch rows carry their own expected column instead.
 - `--lax` relaxes only final-URL comparison, not status or hops.
+- `normalization` is not a lax-only field: a strict `expect-final` failure already carries `normalization` in JSON when a single rule would match (terminal shows ` (would pass under lax rule: <rule>)`); a lax pass via combined rules carries no `normalization` field.
+- A non-terminating chain makes assertions indeterminate, not just failing: a loop plus `--expect-final` yields `expect-final: expected X, got null (not evaluated: chain did not terminate)` and `max-hops` yields `actual: "loop"` - both exit 4, so a loop-plus-expect run upgrades exit 1 to 4.
+- An Assertions section renders only when assertions were actually evaluated - a transport-failed trace with `--expect-final` produces no Assertions output and exits 3.
