@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.2.1](https://github.com/jishnuteegala/redirect-trace/compare/v0.2.0...v0.2.1) (2026-11-14)
+
+
+### Features
+
+* record docs, build, and ci commits in changelogs ([#27](https://github.com/jishnuteegala/redirect-trace/issues/27)) ([11feead](https://github.com/jishnuteegala/redirect-trace/commit/11feead72c2e7a105dffdabe8c01ead90f0f1b8d))
+
+
+### Bug Fixes
+
+* report real version; quality pass over CLI surface and docs ([#30](https://github.com/jishnuteegala/redirect-trace/issues/30)) ([68a8260](https://github.com/jishnuteegala/redirect-trace/commit/68a8260b7a38615b67e6cfcad59347b381e2b7e8))
+
+
+### Performance Improvements
+
+* **batch:** raise the default batch concurrency from 2 to 4 ([#39](https://github.com/jishnuteegala/redirect-trace/issues/39)) ([9b00ac5](https://github.com/jishnuteegala/redirect-trace/commit/9b00ac585e7b9e81da7706993de9e595b4e42a50))
+
+
+### Documentation
+
+* advance formal-verify-redirect-trace sync commit to 9b00ac5 ([#41](https://github.com/jishnuteegala/redirect-trace/issues/41)) ([eb86512](https://github.com/jishnuteegala/redirect-trace/commit/eb86512a6c579ece21c83de88405337156ec1c97))
+* tighten verify-redirect-trace map against live output ([#31](https://github.com/jishnuteegala/redirect-trace/issues/31)) ([363b2c0](https://github.com/jishnuteegala/redirect-trace/commit/363b2c02e864655d1267dd87fad15ef442199594))
+* tighten verify-redirect-trace map precision from weekly pass ([#40](https://github.com/jishnuteegala/redirect-trace/issues/40)) ([152e21b](https://github.com/jishnuteegala/redirect-trace/commit/152e21b73f338880262875e9fd2ba5c8ad7fc985))
+
+
+### Build System
+
+* **deps-dev:** bump vitest to 4.1.12 to clear security alerts ([#33](https://github.com/jishnuteegala/redirect-trace/issues/33)) ([4fb625b](https://github.com/jishnuteegala/redirect-trace/commit/4fb625b2aa814a30b30ffab79b86d2a9fbb4fecb))
+* pin Node 24.22.2 in .node-version ([877694d](https://github.com/jishnuteegala/redirect-trace/commit/877694dc602e4a2bf3e6ff46bb0679a4b576e950))
+
+
+### Continuous Integration
+
+* cancel superseded CI runs only for pull requests ([877694d](https://github.com/jishnuteegala/redirect-trace/commit/877694dc602e4a2bf3e6ff46bb0679a4b576e950))
+* compare the release build with the CI dist manifest before publishing ([#37](https://github.com/jishnuteegala/redirect-trace/issues/37)) ([3dfdec9](https://github.com/jishnuteegala/redirect-trace/commit/3dfdec93f0455c1437f9f96becb44e1493be9b94))
+* publish prerelease tags to npm next and mark their release as prerelease ([877694d](https://github.com/jishnuteegala/redirect-trace/commit/877694dc602e4a2bf3e6ff46bb0679a4b576e950))
+* stop rerunning checks in publish and skip versions already on npm ([#34](https://github.com/jishnuteegala/redirect-trace/issues/34)) ([877694d](https://github.com/jishnuteegala/redirect-trace/commit/877694dc602e4a2bf3e6ff46bb0679a4b576e950))
+* use shared app-ci workflow ([#24](https://github.com/jishnuteegala/redirect-trace/issues/24)) ([6b47ea7](https://github.com/jishnuteegala/redirect-trace/commit/6b47ea7d42a9ba6d0d4ed5f035d9eb64854aef17))
+
 ## [0.2.0](https://github.com/jishnuteegala/redirect-trace/compare/v0.1.0...v0.2.0) (2026-08-03)
 
 
