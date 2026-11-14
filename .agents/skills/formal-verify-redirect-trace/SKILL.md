@@ -27,7 +27,7 @@ Requires Node >= 22.18 (native TypeScript type-stripping; verified on v24). No i
 | --- | --- | --- |
 | `src/exit-code.ts` | `traceExitCode`, `batchExitCode` | the full precedence table and aggregation |
 
-**Sync commit:** `68a8260` (committed 2026-10-10; verified in sync on 2026-10-24). Move this forward only after re-running the check and confirming the contract describes the code at the new commit.
+**Sync commit:** `9b00ac5` (committed 2026-11-11; verified in sync on 2026-11-14). Move this forward only after re-running the check and confirming the contract describes the code at the new commit.
 
 `check.mts` sits outside every tsconfig (repo `tsc` covers `src/` and `test/` only) and outside `oxlint .` (the `.agents/` tree is hidden and skipped), and Node type-stripping performs no typecheck - nothing automated catches type-level drift in its fixtures. The run still catches behavior-level drift (a renamed field makes the fixture's value invisible to the new shape and the check fails), but a type-only change like a new required field passes silently: re-read `Assertion`, `Flag`, `BatchResult`, and `outcome` when updating.
 
