@@ -9,8 +9,11 @@ Sensitive query values are masked by default, and noteworthy chain observations 
 - `mask-diff` masks values inside params diff lines too.
 - `flag-loop` reports `loop` on a repeated URL.
 - `flag-port-change` reports `port-change` when a redirect crosses ports on one host.
-- `flag-cross-origin` reports `cross-origin` alongside port-change for a port-cross.
+- `flag-cross-origin` reports `cross-origin` alongside port-change for a port-cross; a hostname change also adds `host-change`, and an https->http move adds `https-downgrade`.
 - `flag-exit` sets exit 1 when any flag fires and nothing worse happened.
+- `flag-method-transition` reports `method-semantic-transition` when `--method` names a non-GET method and a 301/302/303 hop would drop it to GET (analysis label only; the wire method is always HEAD).
+- `flag-loop-ignoring-params` reports `loop-ignoring-params` under `--ignore-params-loop` when URLs repeat modulo query.
+- `flag-terminal-error` reports `terminal-error-status` when the last hop is >= 400 - unreachable through the fixture (every chain that terminates ends 200); source-verified only.
 
 ## How to get to it (user POV)
 
@@ -34,3 +37,5 @@ Preconditions:
 - `+` in a query is a literal plus, not a space - fixture URLs do not need `%20` tricks.
 - A second fixture is required for port/cross-origin flags; a single origin cannot produce them.
 - Flags coexist with masking; a flagged hop still masks its URL.
+- Loop detection normalizes scheme/host case, default ports, and fragments before comparing - a loop modulo those counts.
+- `--method` changes only the analysis label (it feeds `method-semantic-transition` and JSON `initialMethod`); the wire request is always HEAD (GET fallback on 405/501/transport error) regardless of --method.

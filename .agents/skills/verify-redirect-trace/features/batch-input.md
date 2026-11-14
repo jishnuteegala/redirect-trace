@@ -10,8 +10,8 @@ Trace many URLs in one run from a file or stdin, with a per-row expected destina
 - `batch-expected` uses a second whitespace-separated column as that row's expected final URL.
 - `batch-summary` prints a `| URL | Final | Hops | Result | Detail |` table (also the markdown form).
 - `batch-exit-precedence` returns 3 when any row is transport, parse, or unprompted hop-limit, else 4 on assertion failure (including a hop-limit row under a supplied `--max-hops`), else 1 on flags, else 0.
-- `batch-bad-row` marks a malformed row `FAIL` in the table without aborting the rest.
-- `batch-missing-file` exits 2 with `could not read batch input: <os error>` on stderr.
+- `batch-bad-row` marks a malformed row `FAIL` in the table without aborting the rest - other row errors that also land as `FAIL`: `input row has more than two columns` and `expected-final column must be a valid http or https URL`. `#`-first-column lines are skipped as comments.
+- `batch-missing-file` exits 2 with `could not read batch input: <os error>` on stderr; empty/unusable input exits 2 with `batch input contains no usable rows`, and input over the 10000-line cap exits 2 with `batch input exceeds the 10000-line cap`.
 
 ## How to get to it (user POV)
 
@@ -40,5 +40,7 @@ not-a-url
 
 - Terminal mode streams per-row completion lines before the summary; summary order follows input order, not completion order.
 - A bad row does not abort the batch - it lands as a `FAIL` row and the exit code still reaches 3.
-- `--expect-final` is rejected with batch input (exit 2); per-row expectations live in column 2.
-- Same-host rows serialize; only distinct hosts run concurrently. Fixture batches are effectively serial.
+- `--expect-final` is rejected with batch input (exit 2); per-row expectations live in column 2. `--expect-status`, `--max-hops`, and `--lax` are batch-legal and apply per row; `--concurrency` itself requires batch input (exit 2 otherwise).
+- Same-host rows serialize; only distinct hosts run concurrently - grouping is by hostname, not origin, so two fixture ports still serialize.
+- In terminal format, parse-error rows stream their FAIL line before any tracing starts, regardless of input position; summary order stays input order.
+- Batch JSON parse-error rows are minimal objects (`startUrl`, `initialMethod`, `terminal`, `loopDetected`, `failure`, empty `hops`/`flags`/`assertions`) and omit `truncated`, which normal rows carry.
