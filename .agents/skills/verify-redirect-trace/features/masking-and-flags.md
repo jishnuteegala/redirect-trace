@@ -38,4 +38,4 @@ Preconditions:
 - A second fixture is required for port/cross-origin flags; a single origin cannot produce them.
 - Flags coexist with masking; a flagged hop still masks its URL.
 - Loop detection normalizes scheme/host case, default ports, and fragments before comparing - a loop modulo those counts.
-- `--method` changes only the analysis label (it feeds `method-semantic-transition` and JSON `initialMethod`); the wire request is always HEAD (GET fallback on 405/501/transport error) regardless of --method.
+- `--method` changes only the analysis label (it feeds `method-semantic-transition` and JSON `initialMethod`); the wire request is always HEAD (GET fallback on 405/501 or a non-timeout transport error; a timed-out HEAD is never retried) regardless of --method.
